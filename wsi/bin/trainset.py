@@ -180,6 +180,11 @@ def print_section(string, data, mode="normal", print_function="logging"):
     if print_function == "logging":
         if mode == "normal":
             logging.info(string + ' {}'.format(data))
+        elif mode == "double":
+            string_total = string
+            for i in len(data):
+                string_total += ' {}'.format(data[i])
+            logging.info(string_total)
         elif mode == "loss_single":
             logging.info("loss name:" + string + ' {}'.format(data))
         elif mode == "all_loss":
@@ -196,6 +201,11 @@ def print_section(string, data, mode="normal", print_function="logging"):
     else:
         if mode == "normal":
             print(string + ' {}'.format(data))
+        elif mode == "double":
+            string_total = string
+            for i in len(data):
+                string_total += ' {}'.format(data[i])
+            logging.info(string_total)
         elif mode == "loss_single":
             print("loss name:" + string + ' {}'.format(data))
         elif mode == "all_loss":
@@ -279,7 +289,7 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         loss_data = loss.item()
         time_spent = time.time() - time_now
         time_now = time.time()
-        print_section("step", step)
+        print_section(["step/step all"], [step, len(dataloader)], mode="double")
 
         acc_data = acc_calculate(predict1, target_two)
         acc_data2 = acc_calculate(predict2, target_mean_two)
@@ -306,52 +316,54 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
 
     loss_sum = 0
     acc_sum = 0
+    time_now = time.time()
     for step, (data, target) in enumerate(dataloader):
         with torch.no_grad():
             data = Variable(data.cuda(non_blocking=True))
             target = Variable(target.cuda(non_blocking=True))
-            data_len = len(target)
-            target = target * 0.4
-            target[target.mean(dim=1) > 0, :] = target[target.mean(dim=1) > 0, :] + 0.6
+            target = change_form(target, pre_value=0.6)
             tar = target.clone()
             target = target.mean(dim=1)
 
             output = model(data)
-            loss2 = loss_fn(output, tar)
-            output = torch.nn.functional.sigmoid(output)
-            out = output.clone()
-            output = output.mean(dim=1)
-            loss = loss_fn2(output, target)
 
-            predicts = (output >= 0.5).type(torch.cuda.FloatTensor)
-            targets = (target >= 0.5).type(torch.cuda.FloatTensor)
-            acc_data = (predicts == targets).type(
-                torch.cuda.FloatTensor).sum().item() * 1.0 / (
-                           data_len)
-            predicts_original = (out >= 0.5).type(torch.cuda.FloatTensor)
-            predicts_original_three = out
-            predicts_original_three[(0.7 > out) & (out >= 0.5)] = 0.6
-            predicts_original_three[out >= 0.7] = 1
-            predicts_original_three[out < 0.5] = 0
-            targets_original = (tar >= 0.5).type(torch.cuda.FloatTensor)
-            acc_data2 = (predicts_original == targets_original).type(
-                torch.cuda.FloatTensor).sum().item() * 1.0 / (
-                            tar.numel())
-            acc_data3 = (tar == predicts_original_three).type(
-                torch.cuda.FloatTensor).sum().item() * 1.0 / (
-                            tar.numel())
-            print(loss.item())
-            print(loss2.item())
-            loss_data = (0.2 * loss.item() + 0.8 * loss2.item())
-            print(output)
-            print(target)
-            print(acc_data)
-            print("acc_all", acc_data2)
-            print("acc_3", acc_data3)
+            output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.6, mode=2)
+            if step == 0:
+                print_section("", output, print_function="print")
+                print_section("", output2, print_function="print")
+            loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.2, 0.8])
+
+            loss_name = ['loss1', 'loss2', 'loss_total']
+            loss_value = [loss1, loss2, loss]
+            print_section(loss_name, loss_value, mode="all_loss")
+
+            target_mean_two = predict_reform(target)
+            target_two = predict_reform(tar)
+
+            print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'output_two\n', 'target_two\n'],
+                          [output2, target, predict2, predict3, target_mean_two], mode="show_out_pre",
+                          print_function="print")
+
+            loss_data = loss.item()
+            time_spent = time.time() - time_now
+            time_now = time.time()
+            print_section(["step/step all"], [step, len(dataloader)], mode="double")
+
+            acc_data = acc_calculate(predict1, target_two)
+            acc_data2 = acc_calculate(predict2, target_mean_two)
+            acc_data3 = acc_calculate(predict3, tar)
+            print_section(['acc_two: ', 'acc_mean: ', 'acc_three: '], [acc_data, acc_data2, acc_data3],
+                          mode="show_out_pre")
+            print_section("", [summary['epoch'] + 1, summary['step'] + 1, loss_data, acc_data, time_spent],
+                          mode="sample")
+
+            if (step + 1) % cfg['log_every'] == 0:
+                print_section("", output3, print_function="print")
+                print_section("", tar, print_function="print")
 
             loss_sum += loss_data
             acc_sum += acc_data
-        steps = step + 1
+    steps = len(dataloader)
 
     summary['loss'] = loss_sum / steps
     summary['acc'] = acc_sum / steps
