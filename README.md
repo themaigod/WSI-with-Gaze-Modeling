@@ -1,15 +1,10 @@
 # patch-based 智能诊断
 
-- [介绍](####介绍)
-- [软件架构](####软件架构)
-- [安装教程](####安装教程)
-- [使用说明](####使用说明)
-- [参与贡献](####参与贡献)
-- [Testing](#testing)
-    - [Tissue mask](#tissue-mask)
-    - [Probability map](#probability-map)
-    - [Tumor localization](#tumor-localization)
-    - [FROC evaluation](#froc-evaluation)
+- [介绍](#介绍)
+- [软件架构](#软件架构)
+- [安装教程](#安装教程)
+- [使用说明](#使用说明)
+- [参与贡献](#参与贡献)
 
 #### 介绍
 基于patch的病理诊断
@@ -24,8 +19,7 @@
 #### 安装教程
 
 1.  遵从requirements.txt安装依赖
-2.  python
-3.  xxxx
+2.  保证python版本大于3.7
 
 #### 使用说明
 
