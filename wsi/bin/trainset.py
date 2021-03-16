@@ -22,7 +22,7 @@ from wsi.data.eye_image_producer import GridImageDataset  # noqa
 from wsi.model import MODELS  # noqa
 
 parser = argparse.ArgumentParser(description='Train model')
-parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch-slide/configs/resnet18_crf_data.json",
+parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch-slide/configs/resnet34_change_batch.json",
                     metavar='CFG_PATH',
                     type=str,
                     help='Path to the config file in json format')
@@ -101,12 +101,12 @@ def run(args):
                                   drop_last=True)
 
     summary_train = {'epoch': 0, 'step': 0}
-    summary_valid = {'loss': float('inf'), 'acc': 0}
+    summary_valid = {'epoch': 0, 'loss': float('inf'), 'acc': 0}
     summary_writer = SummaryWriter(args.save_path)
     loss_valid_best = float('inf')
     for epoch in range(cfg['epoch']):
         summary_train = train_epoch(summary_train, summary_writer, cfg, model,
-                                    loss_fn, loss_fn2,
+                                    loss_fn, loss_fn2, optimizer,
                                     dataloader_train)
         torch.save({'epoch': summary_train['epoch'],
                     'step': summary_train['step'],
@@ -182,7 +182,7 @@ def print_section(string, data, mode="normal", print_function="logging"):
             logging.info(string + ' {}'.format(data))
         elif mode == "double":
             string_total = string
-            for i in len(data):
+            for i in range(len(data)):
                 string_total += ' {}'.format(data[i])
             logging.info(string_total)
         elif mode == "loss_single":
@@ -282,14 +282,14 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         target_mean_two = predict_reform(target)
         target_two = predict_reform(tar)
 
-        print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'output_two\n', 'target_two\n'],
-                      [output2, target, predict2, predict3, target_mean_two], mode="show_out_pre",
+        print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'target_two\n'],
+                      [output2, target, predict2, target_mean_two], mode="show_out_pre",
                       print_function="print")
 
         loss_data = loss.item()
         time_spent = time.time() - time_now
         time_now = time.time()
-        print_section(["step/step all"], [step, len(dataloader)], mode="double")
+        print_section("step/step all", [step + 1, len(dataloader)], mode="double")
 
         acc_data = acc_calculate(predict1, target_two)
         acc_data2 = acc_calculate(predict2, target_mean_two)
@@ -316,6 +316,7 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
 
     loss_sum = 0
     acc_sum = 0
+    acc_sum2 = 0
     time_now = time.time()
     for step, (data, target) in enumerate(dataloader):
         with torch.no_grad():
@@ -340,21 +341,21 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
             target_mean_two = predict_reform(target)
             target_two = predict_reform(tar)
 
-            print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'output_two\n', 'target_two\n'],
-                          [output2, target, predict2, predict3, target_mean_two], mode="show_out_pre",
+            print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'target_two\n'],
+                          [output2, target, predict2, target_mean_two], mode="show_out_pre",
                           print_function="print")
 
             loss_data = loss.item()
             time_spent = time.time() - time_now
             time_now = time.time()
-            print_section(["step/step all"], [step, len(dataloader)], mode="double")
+            print_section("step/step all", [step + 1, len(dataloader)], mode="double")
 
             acc_data = acc_calculate(predict1, target_two)
             acc_data2 = acc_calculate(predict2, target_mean_two)
             acc_data3 = acc_calculate(predict3, tar)
             print_section(['acc_two: ', 'acc_mean: ', 'acc_three: '], [acc_data, acc_data2, acc_data3],
                           mode="show_out_pre")
-            print_section("", [summary['epoch'] + 1, summary['step'] + 1, loss_data, acc_data, time_spent],
+            print_section("", [summary['epoch'] + 1, step + 1, loss_data, acc_data, time_spent],
                           mode="sample")
 
             if (step + 1) % cfg['log_every'] == 0:
@@ -363,10 +364,14 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
 
             loss_sum += loss_data
             acc_sum += acc_data
+            acc_sum2 += acc_data2
     steps = len(dataloader)
+
+    print_section("val acc2: ", acc_sum2 / steps)
 
     summary['loss'] = loss_sum / steps
     summary['acc'] = acc_sum / steps
+    summary['epoch'] += 1
 
     return summary
 

@@ -1,0 +1,18 @@
+{
+ "model": "resnet34",
+ "use_crf": false,
+ "batch_size": 30,
+ "image_size": 768,
+ "patch_size": 256,
+ "crop_size": 224,
+ "lr": 0.001,
+ "momentum": 0.9,
+ "data_path_train": "/home/omnisky/ajmq/patchData/process_image/process/train",
+ "data_path_valid": "/home/omnisky/ajmq/patchData/process_image/process/val",
+ "npy_path_train": "/home/omnisky/ajmq/patchData/process_image/process/train",
+ "npy_path_valid": "/home/omnisky/ajmq/patchData/process_image/process/val",
+ "epoch": 100,
+ "log_every": 100,
+ "other_dict": 0,
+ "dict_path": ""
+}
