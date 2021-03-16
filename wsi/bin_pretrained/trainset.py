@@ -328,6 +328,7 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
 
     loss_sum = 0
     acc_sum = 0
+    acc_sum2 = 0
     time_now = time.time()
     for step, (data, target) in enumerate(dataloader):
         with torch.no_grad():
@@ -352,21 +353,21 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
             target_mean_two = predict_reform(target)
             target_two = predict_reform(tar)
 
-            print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'output_two\n', 'target_two\n'],
-                          [output2, target, predict2, predict3, target_mean_two], mode="show_out_pre",
+            print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'target_two\n'],
+                          [output2, target, predict2, target_mean_two], mode="show_out_pre",
                           print_function="print")
 
             loss_data = loss.item()
             time_spent = time.time() - time_now
             time_now = time.time()
-            print_section(["step/step all"], [step + 1, len(dataloader)], mode="double")
+            print_section("step/step all", [step + 1, len(dataloader)], mode="double")
 
             acc_data = acc_calculate(predict1, target_two)
             acc_data2 = acc_calculate(predict2, target_mean_two)
             acc_data3 = acc_calculate(predict3, tar)
             print_section(['acc_two: ', 'acc_mean: ', 'acc_three: '], [acc_data, acc_data2, acc_data3],
                           mode="show_out_pre")
-            print_section("", [summary['epoch'] + 1, summary['step'] + 1, loss_data, acc_data, time_spent],
+            print_section("", [summary['epoch'] + 1, step + 1, loss_data, acc_data, time_spent],
                           mode="sample")
 
             if (step + 1) % cfg['log_every'] == 0:
@@ -375,7 +376,10 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
 
             loss_sum += loss_data
             acc_sum += acc_data
+            acc_sum2 += acc_data2
     steps = len(dataloader)
+
+    print_section("val acc2: ", acc_sum2 / steps)
 
     summary['loss'] = loss_sum / steps
     summary['acc'] = acc_sum / steps
