@@ -276,12 +276,16 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         target = change_form(target, pre_value=0.6)
         tar = target.clone()
         target = target.mean(dim=1)
-        output = model(data)
+        if summary['epoch'] > 1:
+            freeze = False
+        else:
+            freeze = True
+        output = model(data, freeze=freeze)
         output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.6, mode=2)
         if step == 0:
             print_section("", output, print_function="print")
             print_section("", output2, print_function="print")
-        loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.2, 0.8])
+        loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.8, 0.2])
 
         loss_name = ['loss1', 'loss2', 'loss_total']
         loss_value = [loss1, loss2, loss]
@@ -344,7 +348,7 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
             if step == 0:
                 print_section("", output, print_function="print")
                 print_section("", output2, print_function="print")
-            loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.2, 0.8])
+            loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.8, 0.2])
 
             loss_name = ['loss1', 'loss2', 'loss_total']
             loss_value = [loss1, loss2, loss]

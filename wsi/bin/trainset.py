@@ -22,13 +22,13 @@ from wsi.data.eye_image_producer import GridImageDataset  # noqa
 from wsi.model import MODELS  # noqa
 
 parser = argparse.ArgumentParser(description='Train model')
-parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch-slide/configs/resnet34_change_batch.json",
+parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch-slide/configs/resnet34_base.json",
                     metavar='CFG_PATH',
                     type=str,
                     help='Path to the config file in json format')
 parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch-slide/output", metavar='SAVE_PATH', type=str,
                     help='Path to the saved models')
-parser.add_argument('--num_workers', default=2, type=int, help='number of'
+parser.add_argument('--num_workers', default=4, type=int, help='number of'
                                                                ' workers for each data loader, default 2.')
 parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
                                                                   ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
@@ -222,15 +222,24 @@ def print_section(string, data, mode="normal", print_function="logging"):
 
 
 def change_form(tensor, pre_value=0.5):
-    base = 1 - pre_value
-    tensor = tensor * base
-    if len(tensor.shape) == 1:
-        if tensor.mean() > 1:
-            tensor[tensor < 1] = pre_value
+    if pre_value != 1:
+        base = 1 - pre_value
+        tensor = tensor * base
+        if len(tensor.shape) == 1:
+            if tensor.mean() > 0:
+                tensor[tensor < 1] = pre_value
+            else:
+                tensor[:] = 0
         else:
-            tensor[:] = 0
+            tensor[tensor.mean(dim=1) > 0, :] = tensor[tensor.mean(dim=1) > 0, :] + pre_value
     else:
-        tensor[tensor.mean(dim=1) > 0, :] = tensor[tensor.mean(dim=1) > 0, :] + pre_value
+        if len(tensor.shape) == 1:
+            if tensor.mean() > 0:
+                tensor[tensor < 1] = 1
+            else:
+                tensor[:] = 0
+        else:
+            tensor[tensor.mean(dim=1) > 0, :] = 1
     return tensor
 
 
@@ -261,15 +270,15 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
     for step, (data, target) in enumerate(dataloader):
         data = Variable(data.cuda(non_blocking=True))
         target = Variable(target.cuda(non_blocking=True))
-        target = change_form(target, pre_value=0.6)
+        target = change_form(target, pre_value=0.9)
         tar = target.clone()
         target = target.mean(dim=1)
         output = model(data)
-        output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.6, mode=2)
+        output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.9, mode=2)
         if step == 0:
             print_section("", output, print_function="print")
             print_section("", output2, print_function="print")
-        loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.2, 0.8])
+        loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.8, 0.2])
 
         loss_name = ['loss1', 'loss2', 'loss_total']
         loss_value = [loss1, loss2, loss]
@@ -290,6 +299,14 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         time_spent = time.time() - time_now
         time_now = time.time()
         print_section("step/step all", [step + 1, len(dataloader)], mode="double")
+
+        print_section("num 1 in predict", (predict1 == 1).sum().item())
+        print_section("num 0 in predict", (predict1 == 0).sum().item())
+
+        print_section("num all", predict1.numel())
+
+        print_section("num 1 in target", (target_two == 1).sum().item())
+        print_section("num 0 in target", (target_two == 0).sum().item())
 
         acc_data = acc_calculate(predict1, target_two)
         acc_data2 = acc_calculate(predict2, target_mean_two)
@@ -322,17 +339,17 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
         with torch.no_grad():
             data = Variable(data.cuda(non_blocking=True))
             target = Variable(target.cuda(non_blocking=True))
-            target = change_form(target, pre_value=0.6)
+            target = change_form(target, pre_value=0.9)
             tar = target.clone()
             target = target.mean(dim=1)
 
             output = model(data)
 
-            output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.6, mode=2)
+            output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.9, mode=2)
             if step == 0:
                 print_section("", output, print_function="print")
                 print_section("", output2, print_function="print")
-            loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.2, 0.8])
+            loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.8, 0.2])
 
             loss_name = ['loss1', 'loss2', 'loss_total']
             loss_value = [loss1, loss2, loss]
@@ -349,6 +366,14 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
             time_spent = time.time() - time_now
             time_now = time.time()
             print_section("step/step all", [step + 1, len(dataloader)], mode="double")
+
+            print_section("num 1 in predict", (predict1 == 1).sum().item())
+            print_section("num 0 in predict", (predict1 == 0).sum().item())
+
+            print_section("num all", predict1.numel())
+
+            print_section("num 1 in target", (target_two == 1).sum().item())
+            print_section("num 0 in target", (target_two == 0).sum().item())
 
             acc_data = acc_calculate(predict1, target_two)
             acc_data2 = acc_calculate(predict2, target_mean_two)

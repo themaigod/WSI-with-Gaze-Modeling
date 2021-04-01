@@ -26,7 +26,8 @@ class resnet_crf(torch.nn.Module):
         batch_size, grid_size, _, crop_size = x.shape[0:4]
         x = x.view(-1, 3, crop_size, crop_size)
         x = self.resnet(x)
-        logits = self.fc(x)
+        feats = x.view(x.size(0), -1)
+        logits = self.fc(feats)
         feats = feats.view((batch_size, grid_size, -1))
         logits = logits.view((batch_size, grid_size, -1))
         logits = self.crf(feats, logits)
@@ -36,17 +37,22 @@ class resnet_crf(torch.nn.Module):
 
 class resnet_base(torch.nn.Module):
     def __init__(self, key, pretrained, num_class=1):
-        super(resnet_crf, self).__init__()
-        self.model = MODELS[key](pretrained=pretrained)
-        num_fc_ftr = self.model.fc.in_features
-        self.model.fc = torch.nn.Linear(num_fc_ftr, num_class)
+        super(resnet_base, self).__init__()
+        model = MODELS[key](pretrained=pretrained)
+        num_fc_ftr = model.fc.in_features
+        self.resnet = torch.nn.Sequential(*(list(model.children())[:-1]))
+        self.fc = torch.nn.Linear(num_fc_ftr, num_class)
 
-    def forward(self, x):
+    def forward(self, x, freeze=False):
         batch_size, grid_size, _, crop_size = x.shape[0:4]
         x = x.view(-1, 3, crop_size, crop_size)
-        logits = self.resnet(x)
+        if freeze is True:
+            with torch.no_grad():
+                x = self.resnet(x)
+        else:
+            x = self.resnet(x)
+        feats = x.view(x.size(0), -1)
+        logits = self.fc(feats)
         logits = logits.view((batch_size, grid_size, -1))
         logits = torch.squeeze(logits)
         return logits
-
-

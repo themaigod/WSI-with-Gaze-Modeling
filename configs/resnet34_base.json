@@ -11,7 +11,7 @@
  "data_path_valid": "/home/omnisky/ajmq/patchData/process_image/process/val",
  "npy_path_train": "/home/omnisky/ajmq/patchData/process_image/process/train",
  "npy_path_valid": "/home/omnisky/ajmq/patchData/process_image/process/val",
- "epoch": 100,
+ "epoch": 120,
  "log_every": 100,
  "other_dict": 0,
  "dict_path": ""
