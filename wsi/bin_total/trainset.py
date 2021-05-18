@@ -11,6 +11,8 @@ from torch.autograd import Variable
 from torch.nn import BCEWithLogitsLoss, DataParallel
 from torch.optim import SGD
 
+from pre_model import ResnetAll
+
 from tensorboardX import SummaryWriter
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../../')
@@ -64,7 +66,7 @@ def run(args):
 
     patch_per_side = cfg['image_size'] // cfg['patch_size']
     grid_size = patch_per_side * patch_per_side
-    model = MODELS[cfg['model']](num_nodes=grid_size, use_crf=cfg['use_crf'])
+    model = ResnetAll(key=cfg['model'], grid_size=grid_size, pretrained=False, use_crf=cfg['use_crf'])
     model = DataParallel(model, device_ids=None)
     model = model.cuda()
     if cfg['other_dict'] == 1:
@@ -267,14 +269,15 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
     model.train()
 
     time_now = time.time()
-    for step, (data, target) in enumerate(dataloader):
-        data = Variable(data.cuda(non_blocking=True))
+    for step, (data_X, data_Y, target) in enumerate(dataloader):
+        data_X = Variable(data_X.cuda(non_blocking=True))
+        data_Y = Variable(data_Y.cuda(non_blocking=True))
         target = Variable(target.cuda(non_blocking=True))
         target = change_form(target, pre_value=0.8)
         tar = target.clone()
         target = target.mean(dim=1)
-        output = model(data)
-        output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.8, mode=2)
+        output = model(data_X, data_Y)
+        output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.9, mode=2)
         if step == 0:
             print_section("", output, print_function="print")
             print_section("", output2, print_function="print")
