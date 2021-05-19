@@ -1,0 +1,15 @@
+{
+ "model": "resnet34",
+ "use_crf": true,
+ "batch_size": 20,
+ "image_size": 768,
+ "patch_size": 256,
+ "crop_size": 224,
+ "lr": 0.001,
+ "momentum": 0.9,
+ "point_path": "/home/omnisky/ajmq/process_operate_relate/point",
+ "epoch": 120,
+ "log_every": 100,
+ "other_dict": 0,
+ "dict_path": ""
+}

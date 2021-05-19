@@ -5,6 +5,7 @@ import logging
 import json
 import time
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
@@ -22,22 +23,35 @@ from wsi.data.eye_image_producer import GridImageDataset  # noqa
 from wsi.model import MODELS  # noqa
 
 parser = argparse.ArgumentParser(description='Train model')
-parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch-slide/configs/resnet34_base.json",
+parser.add_argument('--cfg_path', default="../../configs/resnet34_new_dataset.json",
                     metavar='CFG_PATH',
                     type=str,
                     help='Path to the config file in json format')
-parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch-slide/output", metavar='SAVE_PATH', type=str,
+parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save", metavar='SAVE_PATH', type=str,
                     help='Path to the saved models')
-parser.add_argument('--num_workers', default=4, type=int, help='number of'
+parser.add_argument('--num_workers', default=6, type=int, help='number of'
                                                                ' workers for each data loader, default 2.')
 parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
                                                                   ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
                                                                   ' and GPU_1, default 0.')
+parser.add_argument('--dataset_produce_path', default='/home/omnisky/ajmq/process_operate_local', type=str,
+                    help='where to import dataset')
+
+args = parser.parse_args()
+
+import_path = args.dataset_produce_path
+if import_path[-1] == '/':
+    import_path = import_path[:-1]
+# import_path = "/home/omnisky/ajmq/process_operate_local"
+sys.path.append(import_path)
+from StartProcess import FullProcess
+
+
+# 感觉是可行的
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
-
     args = parser.parse_args()
     run(args)
 
@@ -78,36 +92,30 @@ def run(args):
     loss_fn2 = torch.nn.BCELoss().cuda()
     optimizer = SGD(model.parameters(), lr=cfg['lr'], momentum=cfg['momentum'])
 
-    dataset_train = GridImageDataset(cfg['data_path_train'],
-                                     cfg['npy_path_train'],
-                                     cfg['image_size'],
-                                     cfg['patch_size'],
-                                     crop_size=cfg['crop_size'])
-    dataset_valid = GridImageDataset(cfg['data_path_valid'],
-                                     cfg['npy_path_valid'],
-                                     cfg['image_size'],
-                                     cfg['patch_size'],
-                                     crop_size=cfg['crop_size'])
-
-    dataloader_train = DataLoader(dataset_train,
-                                  batch_size=batch_size_train,
-                                  num_workers=num_workers,
-                                  shuffle=True,
-                                  drop_last=True)
-
-    dataloader_valid = DataLoader(dataset_valid,
-                                  batch_size=batch_size_valid,
-                                  num_workers=num_workers,
-                                  drop_last=True)
+    process_func = FullProcess(cfg['point_path'], init_status=True)
+    base_dataset = process_func.dataset
 
     summary_train = {'epoch': 0, 'step': 0}
     summary_valid = {'epoch': 0, 'loss': float('inf'), 'acc': 0}
+    summary_valid2 = {'epoch': 0, 'loss': float('inf'), 'acc': 0}
     summary_writer = SummaryWriter(args.save_path)
     loss_valid_best = float('inf')
     for epoch in range(cfg['epoch']):
+        dataset_train, dataset_valid = process_func.inner_get_output_dataset()
+
+        dataloader_train = DataLoader(dataset_train,
+                                      batch_size=batch_size_train,
+                                      num_workers=num_workers,
+                                      shuffle=True,
+                                      drop_last=True)
+
+        dataloader_valid = DataLoader(dataset_valid,
+                                      batch_size=batch_size_valid,
+                                      num_workers=num_workers,
+                                      drop_last=True)
         summary_train = train_epoch(summary_train, summary_writer, cfg, model,
                                     loss_fn, loss_fn2, optimizer,
-                                    dataloader_train)
+                                    dataloader_train, base_dataset)
         torch.save({'epoch': summary_train['epoch'],
                     'step': summary_train['step'],
                     'state_dict': model.module.state_dict()},
@@ -115,7 +123,7 @@ def run(args):
 
         time_now = time.time()
         summary_valid = valid_epoch(summary_valid, cfg, model, loss_fn, loss_fn2,
-                                    dataloader_valid)
+                                    dataloader_valid, base_dataset)
         time_spent = time.time() - time_now
 
         logging.info(
@@ -130,6 +138,19 @@ def run(args):
             'valid/loss', summary_valid['loss'], summary_train['step'])
         summary_writer.add_scalar(
             'valid/acc', summary_valid['acc'], summary_train['step'])
+
+        time_now = time.time()
+        summary_valid2 = valid_epoch_train(summary_valid2, cfg, model, loss_fn, loss_fn2,
+                                     dataloader_train, 0.15, base_dataset)
+        time_spent = time.time() - time_now
+
+        logging.info(
+            '{}, Epoch : {}, Step : {}, Validation(train) Loss : {:.5f}, '
+            'Validation(train) Acc : {:.3f}, Run Time : {:.2f}'
+                .format(
+                time.strftime("%Y-%m-%d %H:%M:%S"), summary_train['epoch'],
+                summary_train['step'], summary_valid2['loss'],
+                summary_valid2['acc'], time_spent))
 
         if summary_valid['loss'] < loss_valid_best:
             loss_valid_best = summary_valid['loss']
@@ -263,15 +284,14 @@ def output_form(output, pre_value=0.5, mode=0, half_size=0.1):
 
 
 def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimizer,
-                dataloader):
+                dataloader, base_dataset):
     model.train()
 
     time_now = time.time()
-    for step, (data, target) in enumerate(dataloader):
+    for step, (data, target, patch, position) in enumerate(dataloader):
+        data.type(torch.cuda.FloatTensor)
         data = Variable(data.cuda(non_blocking=True))
         target = Variable(target.cuda(non_blocking=True))
-        print(data.shape)
-        print(target.shape)
         target = change_form(target, pre_value=0.9)
         tar = target.clone()
         target = target.mean(dim=1)
@@ -316,6 +336,11 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         print_section(['acc_two: ', 'acc_mean: ', 'acc_three: '], [acc_data, acc_data2, acc_data3], mode="show_out_pre")
         print_section("", [summary['epoch'] + 1, summary['step'] + 1, loss_data, acc_data, time_spent], mode="sample")
 
+        result_patch = np.array((predict2 == target_mean_two).cpu())
+        patch = np.array(patch).tolist()
+        position = np.array(position).tolist()
+        base_dataset.get_index(result_patch, patch, position, 0)
+
         summary['step'] += 1
 
         if summary['step'] % cfg['log_every'] == 0:
@@ -330,14 +355,14 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
 
 
 def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
-                dataloader):
+                dataloader, base_dataset):
     model.eval()
 
     loss_sum = 0
     acc_sum = 0
     acc_sum2 = 0
     time_now = time.time()
-    for step, (data, target) in enumerate(dataloader):
+    for step, (data, target, patch, position) in enumerate(dataloader):
         with torch.no_grad():
             data = Variable(data.cuda(non_blocking=True))
             target = Variable(target.cuda(non_blocking=True))
@@ -380,6 +405,12 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
             acc_data = acc_calculate(predict1, target_two)
             acc_data2 = acc_calculate(predict2, target_mean_two)
             acc_data3 = acc_calculate(predict3, tar)
+
+            result_patch = np.array((predict2 == target_mean_two).cpu())
+            patch = np.array(patch).tolist()
+            position = np.array(position).tolist()
+            base_dataset.get_index(result_patch, patch, position, 1)
+
             print_section(['acc_two: ', 'acc_mean: ', 'acc_three: '], [acc_data, acc_data2, acc_data3],
                           mode="show_out_pre")
             print_section("", [summary['epoch'] + 1, step + 1, loss_data, acc_data, time_spent],
@@ -402,6 +433,86 @@ def valid_epoch(summary, cfg, model, loss_fn, loss_fn2,
 
     return summary
 
+def valid_epoch_train(summary, cfg, model, loss_fn, loss_fn2,
+                dataloader, ratio, base_dataset):
+    model.eval()
+
+    loss_sum = 0
+    acc_sum = 0
+    acc_sum2 = 0
+    time_now = time.time()
+    step = 0
+    for step, (data, target, patch, position) in enumerate(dataloader):
+        if step <= len(dataloader) * ratio - 1:
+            with torch.no_grad():
+                data = Variable(data.cuda(non_blocking=True))
+                target = Variable(target.cuda(non_blocking=True))
+                target = change_form(target, pre_value=0.9)
+                tar = target.clone()
+                target = target.mean(dim=1)
+
+                output = model(data)
+
+                output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.9, mode=2)
+                if step == 0:
+                    print_section("", output, print_function="print")
+                    print_section("", output2, print_function="print")
+                loss1, loss2, loss = get_loss(output, tar, loss_fn, output2, target, loss_fn2, ratio=[0.8, 0.2])
+
+                loss_name = ['loss1', 'loss2', 'loss_total']
+                loss_value = [loss1, loss2, loss]
+                print_section(loss_name, loss_value, mode="all_loss")
+
+                target_mean_two = predict_reform(target)
+                target_two = predict_reform(tar)
+
+                print_section(['output_mean\n', 'target_mean\n', 'output_three\n', 'target_two\n'],
+                              [output2, target, predict2, target_mean_two], mode="show_out_pre",
+                              print_function="print")
+
+                loss_data = loss.item()
+                time_spent = time.time() - time_now
+                time_now = time.time()
+                print_section("step/step all", [step + 1, len(dataloader)], mode="double")
+
+                print_section("num 1 in predict", (predict1 == 1).sum().item())
+                print_section("num 0 in predict", (predict1 == 0).sum().item())
+
+                print_section("num all", predict1.numel())
+
+                print_section("num 1 in target", (target_two == 1).sum().item())
+                print_section("num 0 in target", (target_two == 0).sum().item())
+
+                acc_data = acc_calculate(predict1, target_two)
+                acc_data2 = acc_calculate(predict2, target_mean_two)
+                acc_data3 = acc_calculate(predict3, tar)
+
+                result_patch = np.array((predict2 == target_mean_two).cpu())
+                patch = np.array(patch).tolist()
+                position = np.array(position).tolist()
+                base_dataset.get_index(result_patch, patch, position, 0)
+
+                print_section(['acc_two: ', 'acc_mean: ', 'acc_three: '], [acc_data, acc_data2, acc_data3],
+                              mode="show_out_pre")
+                print_section("", [summary['epoch'] + 1, step + 1, loss_data, acc_data, time_spent],
+                              mode="sample")
+
+                if (step + 1) % cfg['log_every'] == 0:
+                    print_section("", output3, print_function="print")
+                    print_section("", tar, print_function="print")
+
+                loss_sum += loss_data
+                acc_sum += acc_data
+                acc_sum2 += acc_data2
+    steps = step + 1
+
+    print_section("val acc2: ", acc_sum2 / steps)
+
+    summary['loss'] = loss_sum / steps
+    summary['acc'] = acc_sum / steps
+    summary['epoch'] += 1
+
+    return summary
 
 if __name__ == '__main__':
     main()
