@@ -1,5 +1,6 @@
 {
- "model": "resnet34",
+ "model_crf": "resnet34",
+ "model_mil": "resnet34",
  "use_crf": true,
  "batch_size": 20,
  "image_size": 768,
