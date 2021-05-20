@@ -48,10 +48,12 @@ if import_path[-1] == '/':
 sys.path.append(import_path)
 from StartProcess import FullProcess
 
+
 def main():
     logging.basicConfig(level=logging.INFO)
     args = parser.parse_args()
     run(args)
+
 
 def run(args):
     with open(args.cfg_path) as f:
@@ -73,6 +75,24 @@ def run(args):
         raise Exception('Image size / patch size != 0 : {} / {}'.
                         format(cfg['image_size'], cfg['patch_size']))
 
-    model_crf = ResnetAll(key=cfg['model'], grid_size=grid_size, pretrained=False, use_crf=cfg['use_crf'])
+    model_crf = ResnetAll(key=cfg['model_crf'], grid_size=grid_size, pretrained=False, use_crf=cfg['use_crf'])
 
-    model_mil = MIL(key)
+    model_mil = MIL(key=cfg['model_mil'], pretrained=True)
+
+    model_crf = DataParallel(model_crf, device_ids=None)
+    model_crf = model_crf.cuda()
+
+    model_mil = DataParallel(model_mil, device_ids=None)
+    model_mil = model_mil.cuda()
+
+    # if cfg['other_dict'] == 1:
+    #     stat_dict = torch.load(cfg['dict_path'])['state_dict']
+    #     model_dict = model.state_dict()
+    #     stat_dict = {k: v for k, v in stat_dict.items() if
+    #                  k in model_dict.keys() and k != 'module.fc.weight' and k != 'module.fc.bias'}
+    #     model_dict.update(stat_dict)
+    #     model.load_state_dict(model_dict)
+    # 保留但暂时不考虑
+
+    loss_fn = BCEWithLogitsLoss().cuda()
+    loss_fn2 = torch.nn.BCELoss().cuda()
