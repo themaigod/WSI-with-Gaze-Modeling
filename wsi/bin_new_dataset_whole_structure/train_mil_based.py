@@ -4,8 +4,12 @@ import logging
 from run_process import *
 from train_gan.train_gan import *
 from train_gan.val_gan import *
+from train_gan.val_train_gan import *
 import torch
 
+# !!!!!!!!!!!!
+# batch_size禁止为1
+# （对1没有进行特殊处理，dataloader输出少一维， 会产生各种问题）
 
 from tensorboardX import SummaryWriter
 
@@ -78,7 +82,7 @@ def run(args):
 
         summary_valid = val_gan()
 
-        summary_valid_train = val_tain_gan()
+        summary_valid_train = val_train_gan()
 
         loss_valid_best = save_best_in_valid_mil_based(args, loss_valid_best, summary_valid, summary_train, model_crf,
                                                        model_mil)
