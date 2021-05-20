@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/patch-based.iml" filepath="$PROJECT_DIR$/.idea/patch-based.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../tuxiang/process_operate/cs/process_operate/process_operate/.idea/process_operate.iml" filepath="$PROJECT_DIR$/../tuxiang/process_operate/cs/process_operate/process_operate/.idea/process_operate.iml" />
     </modules>
   </component>
 </project>

@@ -119,7 +119,7 @@ def run(args):
         torch.save({'epoch': summary_train['epoch'],
                     'step': summary_train['step'],
                     'state_dict': model.module.state_dict()},
-                   os.path.join(args.save_path, 'train.ckpt'))
+                   os.path.join(args.save_path, 'train_epoch.ckpt'))
 
         time_now = time.time()
         summary_valid = valid_epoch(summary_valid, cfg, model, loss_fn, loss_fn2,
@@ -145,8 +145,8 @@ def run(args):
         time_spent = time.time() - time_now
 
         logging.info(
-            '{}, Epoch : {}, Step : {}, Validation(train) Loss : {:.5f}, '
-            'Validation(train) Acc : {:.3f}, Run Time : {:.2f}'
+            '{}, Epoch : {}, Step : {}, Validation(train_epoch) Loss : {:.5f}, '
+            'Validation(train_epoch) Acc : {:.3f}, Run Time : {:.2f}'
                 .format(
                 time.strftime("%Y-%m-%d %H:%M:%S"), summary_train['epoch'],
                 summary_train['step'], summary_valid2['loss'],
@@ -344,8 +344,8 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         summary['step'] += 1
 
         if summary['step'] % cfg['log_every'] == 0:
-            summary_writer.add_scalar('train/loss', loss_data, summary['step'])
-            summary_writer.add_scalar('train/acc', acc_data2, summary['step'])
+            summary_writer.add_scalar('train_epoch/loss', loss_data, summary['step'])
+            summary_writer.add_scalar('train_epoch/acc', acc_data2, summary['step'])
             print_section("", output3, print_function="print")
             print_section("", tar, print_function="print")
 

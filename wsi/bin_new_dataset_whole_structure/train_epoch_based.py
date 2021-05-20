@@ -14,7 +14,6 @@ from tensorboardX import SummaryWriter
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../../')
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
-
 parser = argparse.ArgumentParser(description='Train model')
 parser.add_argument('--cfg_path', default="../../configs/resnet34_new_dataset.json",
                     metavar='CFG_PATH',
@@ -62,28 +61,28 @@ def run(args):
     process_func = FullProcess(cfg['point_path'], init_status=True)
     base_dataset = process_func.dataset
 
-    summary_train_crf, summary_train_mil, summary_valid_crf, summary_valid_mil, summary_valid_train_crf, summary_valid_train_mil = get_summary()
+    summary_train_crf, summary_train_mil, summary_valid_crf, summary_valid_mil, summary_valid_train_crf, summary_valid_train_mil = get_summary_epoch_based()
 
     summary_writer = SummaryWriter(args.save_path)
 
     loss_valid_best = float('inf')
 
+    dataloader_train_mil, dataloader_valid_mil = get_train_mil_dataloader(batch_size_train, batch_size_valid,
+                                                                          num_workers, process_func)
+
     for epoch in range(cfg['epoch']):
         dataloader_train_crf, dataloader_valid_crf = get_train_crf_dataloader(batch_size_train, batch_size_valid,
                                                                               num_workers, process_func)
-
-        dataloader_train_mil, dataloader_valid_mil = get_train_mil_dataloader(batch_size_train, batch_size_valid,
-                                                                              num_workers, process_func)
-
-        summary_train_crf = train_epoch_crf(summary_train_crf, summary_writer, cfg, model_crf,
-                                            loss_fn_with_sigmoid, loss_fn_without_sigmoid, optimizer_crf,
-                                            dataloader_train_crf, base_dataset)
 
         summary_train_mil = train_epoch_mil(summary_train_mil, summary_writer, cfg, model_mil,
                                             loss_fn_with_sigmoid, loss_fn_without_sigmoid, optimizer_mil,
                                             dataloader_train_mil, base_dataset)
 
-        save_train_state_dict(args, model_crf, model_mil, summary_train_crf, summary_train_mil)
+        summary_train_crf = train_epoch_crf(summary_train_crf, summary_writer, cfg, model_crf,
+                                            loss_fn_with_sigmoid, loss_fn_without_sigmoid, optimizer_crf,
+                                            dataloader_train_crf, base_dataset)
+
+        save_train_state_dict_epoch_based(args, model_crf, model_mil, summary_train_crf, summary_train_mil)
 
         summary_valid_crf = vaild_crf(base_dataset, cfg, dataloader_valid_crf, loss_fn_with_sigmoid,
                                       loss_fn_without_sigmoid, model_crf, summary_train_crf, summary_valid_crf)
@@ -99,8 +98,10 @@ def run(args):
         valid_train_mil(base_dataset, cfg, dataloader_train_mil, loss_fn_with_sigmoid, loss_fn_without_sigmoid,
                         model_mil, summary_train_mil, summary_valid_train_mil)
 
-        save_best_in_valid(args, loss_valid_best, summary_valid_mil, summary_train_crf, summary_train_mil, model_crf,
-                           model_mil)
+        loss_valid_best = save_best_in_valid_epoch_based(args, loss_valid_best, summary_valid_crf, summary_train_crf,
+                                                         summary_train_mil, model_crf, model_mil)
+        # 记得选择使用哪个loss
+        # 记得修改loss名
     summary_writer.close()
 
 

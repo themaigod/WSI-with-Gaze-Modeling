@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="jdk" jdkName="Remote Python 3.7.7 (sftp://omnisky@219.216.66.36:22/home/omnisky/anaconda3/bin/python3)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="process_operate" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

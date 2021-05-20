@@ -119,7 +119,7 @@ def run(args):
         torch.save({'epoch': summary_train['epoch'],
                     'step': summary_train['step'],
                     'state_dict': model.module.state_dict()},
-                   os.path.join(args.save_path, 'train.ckpt'))
+                   os.path.join(args.save_path, 'train_epoch.ckpt'))
 
         time_now = time.time()
         summary_valid = valid_epoch(summary_valid, cfg, model, loss_fn, loss_fn2,
@@ -145,8 +145,8 @@ def run(args):
         time_spent = time.time() - time_now
 
         logging.info(
-            '{}, Epoch : {}, Step : {}, Validation(train) Loss : {:.5f}, '
-            'Validation(train) Acc : {:.3f}, Run Time : {:.2f}'
+            '{}, Epoch : {}, Step : {}, Validation(train_epoch) Loss : {:.5f}, '
+            'Validation(train_epoch) Acc : {:.3f}, Run Time : {:.2f}'
                 .format(
                 time.strftime("%Y-%m-%d %H:%M:%S"), summary_train['epoch'],
                 summary_train['step'], summary_valid2['loss'],
@@ -289,7 +289,6 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
 
     time_now = time.time()
     for step, (data, target, patch, position) in enumerate(dataloader):
-        data.type(torch.cuda.FloatTensor)
         data = Variable(data.cuda(non_blocking=True))
         target = Variable(target.cuda(non_blocking=True))
         target = change_form(target, pre_value=0.9)
@@ -344,8 +343,8 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         summary['step'] += 1
 
         if summary['step'] % cfg['log_every'] == 0:
-            summary_writer.add_scalar('train/loss', loss_data, summary['step'])
-            summary_writer.add_scalar('train/acc', acc_data2, summary['step'])
+            summary_writer.add_scalar('train_epoch/loss', loss_data, summary['step'])
+            summary_writer.add_scalar('train_epoch/acc', acc_data2, summary['step'])
             print_section("", output3, print_function="print")
             print_section("", tar, print_function="print")
 
@@ -504,7 +503,7 @@ def valid_epoch_train(summary, cfg, model, loss_fn, loss_fn2,
                 loss_sum += loss_data
                 acc_sum += acc_data
                 acc_sum2 += acc_data2
-    steps = step + 1
+    steps = int(len(dataloader) * ratio)
 
     print_section("val acc2: ", acc_sum2 / steps)
 

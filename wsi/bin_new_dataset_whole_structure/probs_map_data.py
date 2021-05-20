@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser(description='Get the probability map of tumor'
 parser.add_argument('--wsi_path', default="/home/omnisky/ajmq/slideclassify/data_no_process", metavar='WSI_PATH',
                     type=str,
                     help='Path to the input WSI file')
-parser.add_argument('--ckpt_path', default="/home/omnisky/ajmq/slideclassify/ncrf_save/train.ckpt", metavar='CKPT_PATH',
+parser.add_argument('--ckpt_path', default="/home/omnisky/ajmq/slideclassify/ncrf_save/train_epoch.ckpt", metavar='CKPT_PATH',
                     type=str,
                     help='Path to the saved ckpt file of a pytorch model')
 parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/slideclassify/ncrf_save/cfg.json", metavar='CFG_PATH',

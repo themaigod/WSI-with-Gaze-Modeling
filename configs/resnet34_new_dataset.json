@@ -1,6 +1,6 @@
 {
  "model": "resnet34",
- "use_crf": true,
+ "use_crf": false,
  "batch_size": 20,
  "image_size": 768,
  "patch_size": 256,
