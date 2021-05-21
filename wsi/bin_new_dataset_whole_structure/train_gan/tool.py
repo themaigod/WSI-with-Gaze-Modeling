@@ -7,6 +7,16 @@ from torch.utils.data import DataLoader
 from torch.autograd import Function
 
 
+def calc_err(pred, real):
+    pred = np.array(pred)
+    real = np.array(real)
+    neq = np.not_equal(pred, real)
+    err = float(neq.sum()) / pred.shape[0]
+    fpr = float(np.logical_and(pred == 1, neq).sum()) / (real == 0).sum()
+    fnr = float(np.logical_and(pred == 0, neq).sum()) / (real == 1).sum()
+    return err, fpr, fnr
+
+
 def acc_calculate(out_put, pre_dict):
     acc_data = (pre_dict == out_put).type(
         torch.cuda.FloatTensor).sum().item() * 1.0 / (
@@ -125,6 +135,13 @@ def output_form(output, pre_value=0.5, mode=0, half_size=0.1):
         predict1 = predict_reform(output2)
         predict3 = predict_reform(output2, mode=1, threshold=[pre_value - half_size, pre_value + half_size, pre_value])
         return output2, output, output3, predict1, predict2, predict3
+    elif mode == 3:
+        output = torch.sigmoid(output)
+        output_clone = output.clone()
+        output_mean = output.mean(dim=1)
+        predict = predict_reform(output_clone)
+        predict_mean = predict_reform(output_mean)
+        return output_clone, output_mean, predict, predict_mean
 
 
 class TorchRound(Function):

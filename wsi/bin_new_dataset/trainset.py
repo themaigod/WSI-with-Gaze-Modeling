@@ -265,6 +265,15 @@ def change_form(tensor, pre_value=0.5):
 
 
 def output_form(output, pre_value=0.5, mode=0, half_size=0.1):
+    # mode 0 平均值
+    # mode 1 sigmoid再平均值
+    # mode 2
+    # output2 原输出
+    # output sigmoid再平均值
+    # output3 平均值
+    # predict1 平均值二值化
+    # predict2 sigmoid再平均值接着二值化
+    # predict3 sigmoid再平均值，三值化
     if mode == 0:
         output = output.mean(dim=1)
         return output
@@ -281,6 +290,13 @@ def output_form(output, pre_value=0.5, mode=0, half_size=0.1):
         predict1 = predict_reform(output2)
         predict3 = predict_reform(output2, mode=1, threshold=[pre_value - half_size, pre_value + half_size, pre_value])
         return output2, output, output3, predict1, predict2, predict3
+    elif mode == 3:
+        output = torch.sigmoid(output)
+        output_clone = output.clone()
+        output_mean = output.mean(dim=1)
+        predict = predict_reform(output_clone)
+        predict_mean = predict_reform(output_mean)
+        return output_clone, output_mean, predict, predict_mean
 
 
 def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimizer,
@@ -295,7 +311,7 @@ def train_epoch(summary, summary_writer, cfg, model, loss_fn, loss_fn2, optimize
         tar = target.clone()
         target = target.mean(dim=1)
         output = model(data)
-        output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.9, mode=2)
+        output, output2, output3, predict1, predict2, predict3 = output_form(output, pre_value=0.8, mode=2)
         if step == 0:
             print_section("", output, print_function="print")
             print_section("", output2, print_function="print")
