@@ -51,28 +51,28 @@ class ResnetGlobal(torch.nn.Module):
         return x
 
 
-class ResnetAll(torch.nn.Module):
-    def __init__(self, key, grid_size, pretrained, use_crf=0, num_class=1):
-        super(ResnetAll, self).__init__()
-        self.resnet_base = ResnetCrf(key, pretrained, num_class)
-        self.resnet_global = ResnetGlobal(key, pretrained, num_class)
-        num_fc_ftr = self.resnet_base.num_fc_ftr + self.resnet_global.num_fc_ftr
-        self.fc = torch.nn.Linear(num_fc_ftr, num_class)
-        self.use_crf = use_crf
-        self.crf = CRF(grid_size)
-        self.grid_size = grid_size
-
-    def forward(self, x, y):
-        x = self.resnet_base(x)
-        y = self.resnet_global(y)
-        xy = torch.cat([x, y], 1)
-        xy = self.fc(xy)
-        xy = xy.view((batch_size, self.grid_size, -1))
-        x = x.view((batch_size, self.grid_size, -1))
-        if self.use_crf:
-            xy = self.crf(x, xy)
-        xy = torch.squeeze(xy)
-        return xy
+# class ResnetAll(torch.nn.Module):
+#     def __init__(self, key, grid_size, pretrained, use_crf=0, num_class=1):
+#         super(ResnetAll, self).__init__()
+#         self.resnet_base = ResnetBase(key, pretrained, num_class)
+#         self.resnet_global = ResnetGlobal(key, pretrained, num_class)
+#         num_fc_ftr = self.resnet_base.num_fc_ftr + self.resnet_global.num_fc_ftr
+#         self.fc = torch.nn.Linear(num_fc_ftr, num_class)
+#         self.use_crf = use_crf
+#         self.crf = CRF(grid_size)
+#         self.grid_size = grid_size
+#
+#     def forward(self, x, y):
+#         x = self.resnet_base(x)
+#         y = self.resnet_global(y)
+#         xy = torch.cat([x, y], 1)
+#         xy = self.fc(xy)
+#         xy = xy.view((batch_size, self.grid_size, -1))
+#         x = x.view((batch_size, self.grid_size, -1))
+#         if self.use_crf:
+#             xy = self.crf(x, xy)
+#         xy = torch.squeeze(xy)
+#         return xy
 
 
 class MIL(torch.nn.Module):

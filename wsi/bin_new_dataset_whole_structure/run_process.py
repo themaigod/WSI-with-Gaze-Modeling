@@ -3,7 +3,7 @@ import json
 import torch
 from torch.nn import BCEWithLogitsLoss, DataParallel
 from torch.optim import SGD
-from pre_model import (ResnetAll, MIL)
+from pre_model import (ResNetBase, MIL)
 from torch.utils.data import DataLoader
 
 torch.manual_seed(0)
@@ -104,9 +104,9 @@ def get_loss_func():
 
 
 def produce_model(cfg):
-    patch_per_side = cfg['image_size'] // cfg['patch_size']
-    grid_size = patch_per_side * patch_per_side
-    model_crf = ResnetAll(key=cfg['model_crf'], grid_size=grid_size, pretrained=False, use_crf=cfg['use_crf'])
+    # patch_per_side = cfg['image_size'] // cfg['patch_size']
+    # grid_size = patch_per_side * patch_per_side
+    model_crf = ResNetBase(key=cfg['model_crf'], pretrained=cfg['pretrained_crf'])
     model_mil = MIL(key=cfg['model_mil'], pretrained=True)
     model_crf = DataParallel(model_crf, device_ids=None)
     model_crf = model_crf.cuda()
@@ -119,7 +119,7 @@ def get_run_parameter(args, cfg):
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device_ids
     num_GPU = len(args.device_ids.split(','))
     batch_size_train = cfg['batch_size'] * num_GPU
-    batch_size_valid = cfg['batch_size'] * num_GPU * 2
+    batch_size_valid = int(cfg['batch_size'] * num_GPU * 2)
     num_workers = args.num_workers * num_GPU
     if cfg['image_size'] % cfg['patch_size'] != 0:
         raise Exception('Image size / patch size != 0 : {} / {}'.
@@ -167,8 +167,8 @@ def get_summary_epoch_based():
 
 def get_summary_mil_based():
     summary_train = {'epoch': 0, 'step': 0}
-    summary_valid = {'epoch': 0, 'loss_classify': float('inf'), 'loss_selector': float('inf'),
-                     'loss_mixed': float('inf'), 'acc_classify': 0, 'acc_glaze': 0}
-    summary_valid_train = {'epoch': 0, 'loss_classify': float('inf'), 'loss_selector': float('inf'),
-                           'loss_mixed': float('inf'), 'acc_classify': 0, 'acc_glaze': 0}
-    return summary_train, summary_valid, summary_valid_train
+    summary_valid = {'epoch': 0, 'loss': float(0), 'loss_mil': float(0), 'acc': 0, 'acc_crf': 0, 'fpr': 0,
+                     "fnr": 0}
+    # summary_valid_train = {'epoch': 0, 'loss_classify': float('inf'), 'loss_selector': float('inf'),
+    #                        'loss_mixed': float('inf'), 'acc_classify': 0, 'acc_glaze': 0}
+    return summary_train, summary_valid  # summary_valid_train

@@ -1,6 +1,7 @@
 import sys
 import argparse
 import logging
+import json
 from run_process import *
 from train_gan.train_gan import *
 from train_gan.val_gan import *
@@ -17,7 +18,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../../')
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 parser = argparse.ArgumentParser(description='Train model')
-parser.add_argument('--cfg_path', default="../../configs/resnet34_new_dataset.json",
+parser.add_argument('--cfg_path', default="../../configs/resnet34_new_dataset_whole_structure.json",
                     metavar='CFG_PATH',
                     type=str,
                     help='Path to the config file in json format')
@@ -60,35 +61,40 @@ def run(args):
 
     optimizer_crf, optimizer_mil = get_optimzer(cfg, model_crf, model_mil)
 
-    summary_train, summary_valid, summary_valid_train = get_summary_mil_based()
+    summary_train, summary_valid = get_summary_mil_based()
 
     summary_writer = SummaryWriter(args.save_path)
 
     loss_valid_best = float('inf')
 
-    summary_writer = SummaryWriter(args.save_path)
-
-    loss_valid_best = float('inf')
-
-    process_func = FullProcess(cfg['point_path'], init_status=True)
+    process_func = FullProcess(cfg['point_path'], init_status=False)
     base_dataset = process_func.dataset
     dataloader_train_mil, dataloader_valid_mil = get_train_mil_dataloader(batch_size_train, batch_size_valid,
                                                                           num_workers, process_func)
 
+    record_list_total = []
+
     for epoch in range(cfg['epoch']):
-        summary_train = train_gan()
+        summary_train = train_gan(dataloader_train_mil, model_crf, model_mil, base_dataset, summary_train, num_workers,
+                                  batch_size_train, loss_fn_without_sigmoid, optimizer_crf,
+                                  optimizer_mil, cfg['top_k'], cfg['pre_value'], summary_writer, cfg, record_list_total)
 
         save_train_state_dict_mil_based(args, model_crf, model_mil, summary_train)
 
-        summary_valid = val_gan()
-
-        summary_valid_train = val_train_gan()
+        summary_valid = val_gan(dataloader_valid_mil, model_crf, model_mil, base_dataset, summary_valid, num_workers,
+                                batch_size_valid, loss_fn_without_sigmoid, cfg['top_k'], cfg['pre_value'],
+                                summary_writer, cfg, record_list_total)
 
         loss_valid_best = save_best_in_valid_mil_based(args, loss_valid_best, summary_valid, summary_train, model_crf,
                                                        model_mil)
         # 记得选择使用哪个loss
         # 记得修改loss名
+
     summary_writer.close()
+
+    path = os.path.join(args.save_path, 'all_result.json')
+    with open(path, 'w') as f:
+        json.dump(record_list_total, f)
 
 
 if __name__ == '__main__':

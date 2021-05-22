@@ -1,8 +1,9 @@
 {
  "model_crf": "resnet34",
  "model_mil": "resnet34",
- "use_crf": true,
- "batch_size": 20,
+ "pretrained_crf": true,
+ "pretrained_mil": true,
+ "batch_size": 10,
  "image_size": 768,
  "patch_size": 256,
  "crop_size": 224,
@@ -12,5 +13,7 @@
  "epoch": 120,
  "log_every": 100,
  "other_dict": 0,
- "dict_path": ""
+ "dict_path": "",
+ "top_k": 5,
+ "pre_value": 0.8
 }

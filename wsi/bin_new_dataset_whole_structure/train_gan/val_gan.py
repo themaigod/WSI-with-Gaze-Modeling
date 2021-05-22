@@ -8,50 +8,71 @@ def val_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, bat
     model_crf.eval()
     model_mil.eval()
     time_now = time.time()
+    len_data_loader = len(dataloader)
+
     for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(dataloader):
-        data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
-                                                                                     target_mil)
-        output_crf_ori = model_crf(data_crf)
-        output_crf_ori, output_crf, predict_crf, predict_crf_mean = output_form(output_crf_ori, pre_value=0.8, mode=3)
-        output_crf = torch_round_with_backward(output_crf)
-        data_mil = model_get_data_mil(data_mil, output_crf)
-        predict_mil = model_mil(data_mil)
-        predict_mil = torch.sigmoid(predict_mil)
-        record_result(dataset, patch, position, predict_mil)
+        with torch.no_grad():
+            data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
+                                                                                         target_mil, pre_value)
+            output_crf_ori = model_crf(data_crf)
+            output_crf_ori, output_crf, predict_crf, predict_crf_mean = output_form(output_crf_ori, pre_value=pre_value,
+                                                                                    mode=3)
+            output_crf = torch_round_with_backward(output_crf)
+            data_mil = model_get_data_mil(data_mil, output_crf)
+            predict_mil = model_mil(data_mil)
+            predict_mil = torch.sigmoid(predict_mil)
+            record_result(dataset, patch, position, predict_mil)
+        print("step:" + str(step + 1) + "/" + "total step:" + str(len_data_loader) + "  time spent:" + str(
+            time.time() - time_now))
+        time_now = time.time()
+    torch.cuda.empty_cache()
     dataset.slide_max(1)
     val_dataset = dataset.produce_dataset_mil(1, top_k)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size // 4, num_workers=num_workers, drop_last=True)
+    time_now = time.time()
     record_list = []
     for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(val_loader):
         record_list.append([])
-        data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
-                                                                                     target_mil)
-        output_crf_ori = model_crf(data_crf)
-        output_crf_ori, output_crf, predict_crf, predict_crf_mean = output_form(output_crf_ori, pre_value=0.8, mode=3)
-        output_crf = torch_round_with_backward(output_crf)
-        data_mil = model_get_data_mil(data_mil, output_crf)
-        predict_mil = model_mil(data_mil)
-        predict_mil = torch.sigmoid(predict_mil)
+        with torch.no_grad():
+            data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
+                                                                                         target_mil, pre_value)
+            output_crf_ori = model_crf(data_crf)
+            output_crf_ori, output_crf, predict_crf, predict_crf_mean = output_form(output_crf_ori, pre_value=pre_value,
+                                                                                    mode=3)
+            output_crf = torch_round_with_backward(output_crf)
+            data_mil = model_get_data_mil(data_mil, output_crf)
+            predict_mil = model_mil(data_mil)
+            predict_mil = torch.sigmoid(predict_mil)
 
-        loss_crf_mean = loss_fn(output_crf, target_crf)
-        loss_crf_ori = loss_fn(output_crf_ori, target_crf_clone)
-        loss_crf = 0.2 * loss_crf_ori + 0.8 * loss_crf_mean
-        loss_crf_mil = loss_fn(predict_mil, target_mil)
-        loss_crf_final = loss_crf * 0.4 + loss_crf_mil * 0.6
+            loss_crf_mean = loss_fn(output_crf, target_crf)
+            loss_crf_ori = loss_fn(output_crf_ori, target_crf_clone)
+            loss_crf = 0.2 * loss_crf_ori + 0.8 * loss_crf_mean
+            loss_crf_mil = loss_fn(predict_mil, target_mil)
+            loss_crf_final = loss_crf * 0.4 + loss_crf_mil * 0.6
 
-        time_now = show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf,
-                            output_crf_ori, pre_value, predict_crf, predict_crf_mean, predict_mil, step, summary,
-                            target_crf, target_mil, target_crf_clone, time_now, val_loader, summary_writer, cfg,
-                            record_list)
-
-        summary['step'] += 1
+            time_now = show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf,
+                                output_crf_ori, pre_value, predict_crf, predict_crf_mean, predict_mil, step, summary,
+                                target_crf, target_mil, target_crf_clone, time_now, val_loader, summary_writer, cfg,
+                                record_list)
 
     record_list_total.append(record_list)
+    summary_writer.add_scalar('val_epoch/loss', summary['loss'] / len(dataloader), summary['epoch'])
+    summary_writer.add_scalar('val_epoch/acc', summary['acc'] / len(dataloader), summary['epoch'])
+    summary_writer.add_scalar('val_epoch/tpr', 1 - (summary['fpr'] / len(dataloader)), summary['epoch'])
+    print("Validation")
+    print("loss: " + str(summary['loss'] / len(dataloader)))
+    print("loss_mil: " + str(summary['loss_mil'] / len(dataloader)))
+    print("acc: " + str(summary['acc'] / len(dataloader)))
+    print("acc_crf: " + str(summary['acc_crf'] / len(dataloader)))
+    print("tpr: " + str(1 - (summary['fpr'] / len(dataloader))))
+    torch.cuda.empty_cache()
+    summary['epoch'] += 1
+    return summary
 
 
 def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf, output_crf_ori, pre_value,
-             predict_crf, predict_crf_mean, predict_mil, step, summary, target_crf, target_mil, target_crf_clone, time_now, train_loader,
-             summary_writer, cfg, record_list):
+             predict_crf, predict_crf_mean, predict_mil, step, summary, target_crf, target_mil, target_crf_clone,
+             time_now, train_loader, summary_writer, cfg, record_list):
     if step % 3 == 0:
         print("output crf mean:")
         print(output_crf)
@@ -75,9 +96,14 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     predict_mil_to_2 = predict_reform(predict_mil)
     acc_data_mil = acc_calculate(predict_mil_to_2, target_mil)
 
-    err_ori, fpr_ori, fnr_ori = calc_err(predict_crf, target_two)
-    err_mean, fpr_mean, fnr_mean = calc_err(predict_crf_mean, target_mean_two)
-    err_mil, fpr_mil, fnr_mil = calc_err(predict_mil_to_2, target_mil)
+    print("output mil:")
+    print(list(np.array(predict_mil_to_2.cpu())))
+    print("target_mil")
+    print(list(np.array(target_mil.cpu())))
+
+    err_ori, fpr_ori, fnr_ori = calc_err(predict_crf.cpu(), target_two.cpu())
+    err_mean, fpr_mean, fnr_mean = calc_err(predict_crf_mean.cpu(), target_mean_two.cpu())
+    err_mil, fpr_mil, fnr_mil = calc_err(predict_mil_to_2.cpu(), target_mil.cpu())
 
     fp_fn_name = ['False Positive Rate in ori: ', 'False Negative Rate in ori: ', 'False Positive Rate in mean: ',
                   'False Negative Rate in mean: ', 'False Positive Rate in mil: ',
@@ -93,6 +119,7 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     loss_name = ['loss_crf_ori: ', 'loss_crf_mean: ', 'loss_crf: ', 'loss_crf_mil: ', 'loss_crf_final: ']
     print_section(loss_name, [loss_crf_ori, loss_crf_mean, loss_crf, loss_crf_mil, loss_crf_final],
                   mode="show_out_pre")
+    print("it's val")
     print_section("", [summary['epoch'] + 1, step + 1, loss_crf_final, acc_data, time_spent],
                   mode="sample")
 
@@ -112,19 +139,26 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     record_list[-1].append(fpr_mil)
     record_list[-1].append(fnr_mil)
 
-    if summary['step'] % cfg['log_every'] == 0:
-        summary_writer.add_scalar('train_epoch/loss in selector', loss_crf_final, summary['step'])
-        summary_writer.add_scalar('train_epoch/acc in selector', acc_data2, summary['step'])
-        summary_writer.add_scalar('train fpr/tpr in selector', 1 - fpr_ori, fpr_ori)
-        print_section("", output_crf_ori, print_function="print")
-        print_section("", target_crf_clone, print_function="print")
+    summary['loss'] += float(loss_crf_final.cpu())
+    summary['loss_mil'] += float(loss_crf_mil.cpu())
+    summary['acc'] += acc_data_mil
+    summary['acc_crf'] += acc_data2
+    summary['fpr'] = fpr_mil
+    summary['fnr'] = fnr_mil
+
+    # if summary['step'] % cfg['log_every'] == 0:
+    #     summary_writer.add_scalar('train_epoch/loss in selector', loss_crf_final, summary['step'])
+    #     summary_writer.add_scalar('train_epoch/acc in selector', acc_data2, summary['step'])
+    #     summary_writer.add_scalar('train fpr/tpr in selector', 1 - fpr_ori, fpr_ori)
+    #     print_section("", output_crf_ori, print_function="print")
+    #     print_section("", target_crf_clone, print_function="print")
 
     return time_now
 
 
 def model_get_data_mil(data_mil, output_crf):
     output_crf = output_crf.clone()
-    for i in range(len(data_mil.shape)):
+    for i in range(len(data_mil.shape) - 1):
         output_crf = output_crf.unsqueeze(1)
     # output_crf = output_crf.expand((data_mil.shape[0], data_mil.shape[1], data_mil.shape[2], data_mil.shape[3]))
     # 似乎不需要了，pytorch自带广播机制（broadcast）
@@ -141,18 +175,18 @@ def access_index(output_crf):
 
 
 def record_result(dataset, patch, position, predict_mil):
-    predict_final = np.array(predict_mil.cpu())
+    predict_final = np.array(predict_mil.detach().cpu())
     # dataset.get_index(predict_final, patch, position, 0)
     patch = np.array(patch).tolist()
     position = np.array(position).tolist()
     dataset.record_result_mil(predict_final, patch, position, 1)
 
 
-def transfer2cuda(data_crf, data_mil, target_crf, target_mil):
+def transfer2cuda(data_crf, data_mil, target_crf, target_mil, pre_value):
     data_crf = Variable(data_crf.cuda(non_blocking=True))
     data_mil = Variable(data_mil.cuda(non_blocking=True))
-    target_crf_clone = target_crf.cuda(non_blocking=True).clone().detach()
     target_crf = Variable(target_crf.cuda(non_blocking=True))
     target_mil = Variable(target_mil.cuda(non_blocking=True))
-    target_crf = change_form(target_crf, pre_value=0.8)
-    return data_crf, data_mil, target_crf, target_crf_clone, target_mil
+    target_crf = change_form(target_crf, pre_value=pre_value)
+    target_crf_mean = target_crf.clone().detach().mean(dim=1)
+    return data_crf, data_mil, target_crf_mean, target_crf, target_mil

@@ -11,7 +11,7 @@ def calc_err(pred, real):
     pred = np.array(pred)
     real = np.array(real)
     neq = np.not_equal(pred, real)
-    err = float(neq.sum()) / pred.shape[0]
+    err = float(neq.sum()) / pred.size
     fpr = float(np.logical_and(pred == 1, neq).sum()) / (real == 0).sum()
     fnr = float(np.logical_and(pred == 0, neq).sum()) / (real == 1).sum()
     return err, fpr, fnr
