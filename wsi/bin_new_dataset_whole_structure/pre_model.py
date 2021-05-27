@@ -31,13 +31,38 @@ MODELS = {'resnet18': resnet18,
 #         x = x.view(x.size(0), -1)
 #         return x, batch_size
 
+# class ResNetBase(torch.nn.Module):
+#     def __init__(self, key, pretrained, num_class=1):
+#         super(ResNetBase, self).__init__()
+#         model = MODELS[key](pretrained=pretrained)
+#         num_fc_ftr = model.fc.in_features
+#         self.resnet = torch.nn.Sequential(*(list(model.children())[:-1]))
+#         self.fc = torch.nn.Linear(num_fc_ftr, num_class)
+#
+#     def forward(self, x, freeze=False):
+#         batch_size, grid_size, _, crop_size = x.shape[0:4]
+#         x = x.view(-1, 3, crop_size, crop_size)
+#         if freeze is True:
+#             with torch.no_grad():
+#                 x = self.resnet(x)
+#         else:
+#             x = self.resnet(x)
+#         feats = x.view(x.size(0), -1)
+#         logits = self.fc(feats)
+#         logits = logits.view((batch_size, grid_size, -1))
+#         logits = torch.squeeze(logits)
+#         return logits
+
 class ResNetBase(torch.nn.Module):
     def __init__(self, key, pretrained, num_class=1):
         super(ResNetBase, self).__init__()
+        # model = MODELS[key](pretrained=pretrained)
+        # num_fc_ftr = model.fc.in_features
+        # self.resnet = torch.nn.Sequential(*(list(model.children())[:-1]))
+        # self.fc = torch.nn.Linear(num_fc_ftr, num_class)
         model = MODELS[key](pretrained=pretrained)
-        num_fc_ftr = model.fc.in_features
-        self.resnet = torch.nn.Sequential(*(list(model.children())[:-1]))
-        self.fc = torch.nn.Linear(num_fc_ftr, num_class)
+        model.fc = nn.Linear(model.fc.in_features, num_class)
+        self.resnet = model
 
     def forward(self, x, freeze=False):
         batch_size, grid_size, _, crop_size = x.shape[0:4]
@@ -47,11 +72,11 @@ class ResNetBase(torch.nn.Module):
                 x = self.resnet(x)
         else:
             x = self.resnet(x)
-        feats = x.view(x.size(0), -1)
-        logits = self.fc(feats)
-        logits = logits.view((batch_size, grid_size, -1))
-        logits = torch.squeeze(logits)
-        return logits
+        # feats = x.view(x.size(0), -1)
+        # logits = self.fc(feats)
+        x = x.view((batch_size, grid_size, -1))
+        x = torch.squeeze(x)
+        return x
 
 
 # class ResnetGlobal(torch.nn.Module):

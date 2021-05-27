@@ -10,6 +10,8 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
     time_now = time.time()
     len_data_loader = len(dataloader)
 
+    time_start = time.time()
+
     for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(dataloader):
         # predict_final = np.zeros((len(data)))
         # if step != 0 or summary['epoch'] != 0:
@@ -29,13 +31,25 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
         print("step:" + str(step + 1) + "/" + "total step:" + str(len_data_loader) + "  time spent:" + str(
             time.time() - time_now))
         time_now = time.time()
+
+        time_spent = time.time() - time_start
+        time_whole = time_spent / (step + 1) * len_data_loader
+        time_need = time_whole - time_spent
+        print("train inference used :" + str(time_spent // (60 * 60)) + "hour," + str(
+            (time_spent // 60) % 60) + "min," + str(time_spent % 60) + "s")
+        print("train inference need :" + str(time_need // (60 * 60)) + "hour," + str(
+            (time_need // 60) % 60) + "min," + str(time_need % 60) + "s")
+
     dataset.slide_max(0)
     train_dataset = dataset.produce_dataset_mil(0, top_k)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                              drop_last=True)
     model_mil.train()
     model_crf.train()
     record_list = []
     time_now = time.time()
+    time_start = time.time()
+    len_train_loader = len(train_loader)
     for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(train_loader):
         record_list.append([])
         data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
@@ -44,8 +58,8 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
         output_crf_ori, output_crf, predict_crf, predict_crf_mean = output_form(output_crf_ori, pre_value=pre_value,
                                                                                 mode=3)
         index = access_index(output_crf)
-        output_crf = torch_round_with_backward(output_crf)
-        data_mil = model_get_data_mil(data_mil, output_crf)
+        output_crf_round = torch_round_with_backward(output_crf)
+        data_mil = model_get_data_mil(data_mil, output_crf_round)
 
         predict_mil = model_mil(data_mil)
         predict_mil = torch.sigmoid(predict_mil)
@@ -76,6 +90,14 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
 
         show_mil(index, loss_mil, predict_mil[index], step, summary, target_mil[index], time_now, summary_writer, cfg,
                  record_list)
+
+        time_spent = time.time() - time_start
+        time_whole = time_spent / (step + 1) * len_train_loader
+        time_need = time_whole - time_spent
+        print("train used :" + str(time_spent // (60 * 60)) + "hour," + str(
+            (time_spent // 60) % 60) + "min," + str(time_spent % 60) + "s")
+        print("train need :" + str(time_need // (60 * 60)) + "hour," + str(
+            (time_need // 60) % 60) + "min," + str(time_need % 60) + "s")
 
         summary['step'] += 1
 
@@ -113,7 +135,7 @@ def show_mil(index, loss_mil, predict_mil, step, summary, target_mil, time_now, 
         print_section("", [summary['epoch'] + 1, step + 1, loss_mil, acc_mil, time_spent],
                       mode="sample")
 
-        record_list[-1].append(loss_mil)
+        record_list[-1].append(float(loss_mil.cpu()))
         record_list[-1].append(acc_mil)
         record_list[-1].append(fpr_mil)
         record_list[-1].append(fnr_mil)
@@ -121,7 +143,8 @@ def show_mil(index, loss_mil, predict_mil, step, summary, target_mil, time_now, 
         if summary['step'] % cfg['log_every'] == 0:
             summary_writer.add_scalar('train_step/loss_mil', float(loss_mil.cpu()), summary['step'])
             summary_writer.add_scalar('train_step/acc_mil', acc_mil, summary['step'])
-            summary_writer.add_scalar('train_step/tpr_mil', 1 - fpr_mil, summary['step'])
+            summary_writer.add_scalar('train_step/tpr_mil', 1 - fnr_mil, summary['step'])
+            summary_writer.add_scalar('train_step/fpr_mil', fpr_mil, summary['step'])
 
 
 def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf, output_crf_ori, pre_value,
@@ -171,11 +194,11 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     print_section("", [summary['epoch'] + 1, step + 1, loss_crf_final, acc_data, time_spent],
                   mode="sample")
 
-    record_list[-1].append(loss_crf_ori)
-    record_list[-1].append(loss_crf_mean)
-    record_list[-1].append(loss_crf)
-    record_list[-1].append(loss_crf_mil)
-    record_list[-1].append(loss_crf_final)
+    record_list[-1].append(float(loss_crf_ori.cpu()))
+    record_list[-1].append(float(loss_crf_mean.cpu()))
+    record_list[-1].append(float(loss_crf.cpu()))
+    record_list[-1].append(float(loss_crf_mil.cpu()))
+    record_list[-1].append(float(loss_crf_final.cpu()))
     record_list[-1].append(acc_data)
     record_list[-1].append(acc_data2)
     record_list[-1].append(acc_data3)
@@ -191,8 +214,10 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
         summary_writer.add_scalar('train_step/loss_selector', float(loss_crf_final.cpu()), summary['step'])
         summary_writer.add_scalar('train_step/acc_selector', acc_data2, summary['step'])
         summary_writer.add_scalar('train_step/acc_total', acc_data_mil, summary['step'])
-        summary_writer.add_scalar('train_step/train_tpr_selector', 1 - fpr_ori, summary['step'])
-        summary_writer.add_scalar('train_step/train_tpr_total', 1 - fpr_mil, summary['step'])
+        summary_writer.add_scalar('train_step/train_tpr_selector', 1 - fnr_ori, summary['step'])
+        summary_writer.add_scalar('train_step/train_tpr_total', 1 - fnr_mil, summary['step'])
+        summary_writer.add_scalar('train_step/train_fpr_selector', 1 - fpr_ori, summary['step'])
+        summary_writer.add_scalar('train_step/train_fpr_total', 1 - fpr_mil, summary['step'])
         print_section("", output_crf_ori, print_function="print")
         print_section("", target_crf_clone, print_function="print")
 

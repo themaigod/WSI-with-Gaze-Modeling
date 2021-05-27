@@ -2,6 +2,8 @@ import sys
 import argparse
 import logging
 import json
+import time
+
 from run_process import *
 from train_gan.train_gan import *
 from train_gan.val_gan import *
@@ -24,7 +26,7 @@ parser.add_argument('--cfg_path', default="../../configs/resnet34_new_dataset_wh
                     help='Path to the config file in json format')
 parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save", metavar='SAVE_PATH', type=str,
                     help='Path to the saved models')
-parser.add_argument('--num_workers', default=6, type=int, help='number of'
+parser.add_argument('--num_workers', default=5, type=int, help='number of'
                                                                ' workers for each data loader, default 2.')
 parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
                                                                   ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
@@ -74,6 +76,8 @@ def run(args):
 
     record_list_total = []
 
+    time_start = time.time()
+
     for epoch in range(cfg['epoch']):
         summary_train = train_gan(dataloader_train_mil, model_crf, model_mil, base_dataset, summary_train, num_workers,
                                   batch_size_train, loss_fn_without_sigmoid, optimizer_crf,
@@ -90,11 +94,24 @@ def run(args):
         # 记得选择使用哪个loss
         # 记得修改loss名
 
-    summary_writer.close()
+        time_spent = time.time() - time_start
+        time_whole = (time_spent / (epoch + 1)) * cfg['epoch']
+        time_need = time_whole - time_spent
+        print("whole train used :" + str(time_spent // (60 * 60)) + "hour," + str(
+            (time_spent // 60) % 60) + "min," + str(time_spent % 60) + "s")
+        print("whole train still need :" + str(time_need // (60 * 60)) + "hour," + str(
+            (time_need // 60) % 60) + "min," + str(time_need % 60) + "s")
 
-    path = os.path.join(args.save_path, 'all_result.json')
-    with open(path, 'w') as f:
-        json.dump(record_list_total, f)
+        with open("/home/omnisky/ajmq/patch_slide_local/wsi/bin_new_dataset_whole_structure/ifstop.json") as f:
+            stop = json.load(f)
+        if stop['stop'] is True:
+            break
+
+        path = os.path.join(args.save_path, 'all_result{}.json'.format(epoch))
+        with open(path, 'w') as f:
+            json.dump(record_list_total, f)
+
+    summary_writer.close()
 
 
 if __name__ == '__main__':

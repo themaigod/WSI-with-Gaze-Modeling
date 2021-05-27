@@ -157,4 +157,11 @@ class TorchRound(Function):
         return grad_input
 
 
-torch_round_with_backward = TorchRound.apply
+# torch_round_with_backward = TorchRound.apply
+
+
+def torch_round_with_backward(output_crf):
+    output_crf_round = output_crf.clone()
+    output_crf_round[output_crf_round >= 0.5] = 1.0
+    output_crf_round[output_crf_round < 0.5] = 0
+    return output_crf_round

@@ -29,7 +29,12 @@ def save_best_in_valid_epoch_based(args, loss_valid_best, summary_valid, summary
 
 def save_best_in_valid_mil_based(args, loss_valid_best, summary_valid, summary_train,
                                  model_crf, model_mil):
-    if summary_valid['loss'] < loss_valid_best:
+    torch.save({'epoch': summary_train['epoch'],
+                'step': summary_train['step'],
+                'state_dict_crf': model_crf.module.state_dict(),
+                'state_dict_mil': model_mil.module.state_dict()},
+               os.path.join(args.save_path, 'train_epoch{}.ckpt'.format(summary_train['epoch'])))
+    if summary_valid['loss_mil'] < loss_valid_best:
         loss_valid_best = summary_valid['loss']
 
         torch.save({'epoch': summary_train['epoch'],
@@ -108,6 +113,22 @@ def produce_model(cfg):
     # grid_size = patch_per_side * patch_per_side
     model_crf = ResNetBase(key=cfg['model_crf'], pretrained=cfg['pretrained_crf'])
     model_mil = MIL(key=cfg['model_mil'], pretrained=True)
+    model_crf = DataParallel(model_crf, device_ids=None)
+    model_crf = model_crf.cuda()
+    model_mil = DataParallel(model_mil, device_ids=None)
+    model_mil = model_mil.cuda()
+    return model_crf, model_mil
+
+
+def produce_model_no_cuda(cfg):
+    # patch_per_side = cfg['image_size'] // cfg['patch_size']
+    # grid_size = patch_per_side * patch_per_side
+    model_crf = ResNetBase(key=cfg['model_crf'], pretrained=cfg['pretrained_crf'])
+    model_mil = MIL(key=cfg['model_mil'], pretrained=True)
+    return model_crf, model_mil
+
+
+def cuda_model(model_crf, model_mil):
     model_crf = DataParallel(model_crf, device_ids=None)
     model_crf = model_crf.cuda()
     model_mil = DataParallel(model_mil, device_ids=None)

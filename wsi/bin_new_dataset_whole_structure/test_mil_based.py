@@ -1,18 +1,96 @@
-import torch.nn
+import sys
+import argparse
+import logging
+import json
+import time
 
-from .tool import *
+from run_process import *
+# from train_gan.train_gan import *
+# from train_gan.val_gan import *
+# from train_gan.val_train_gan import *
+from train_gan.tool import *
+import torch
+
+# !!!!!!!!!!!!
+# batch_size禁止为1
+# （对1没有进行特殊处理，dataloader输出少一维， 会产生各种问题）
+
+from tensorboardX import SummaryWriter
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../../')
+torch.manual_seed(0)
+torch.cuda.manual_seed_all(0)
+
+parser = argparse.ArgumentParser(description='Test model')
+parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch_slide_relate/save5.28/cfg.json",
+                    metavar='CFG_PATH',
+                    type=str,
+                    help='Path to the config file in json format')
+parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save5.28/save_test",
+                    metavar='SAVE_PATH', type=str,
+                    help='Path to the saved test result')
+parser.add_argument('--num_workers', default=5, type=int, help='number of'
+                                                               ' workers for each data loader, default 2.')
+parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
+                                                                  ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
+                                                                  ' and GPU_1, default 0.')
+parser.add_argument('--weight_path', default='/home/omnisky/ajmq/patch_slide_relate/save5.28/best.ckpt', type=str,
+                    help='weight path')
+parser.add_argument('--dataset_produce_path', default='/home/omnisky/ajmq/process_operate_local', type=str,
+                    help='where to import dataset')
+
+args_out = parser.parse_args()
+
+import_path = args_out.dataset_produce_path
+if import_path[-1] == '/':
+    import_path = import_path[:-1]
+# import_path = "/home/omnisky/ajmq/process_operate_local"
+sys.path.append(import_path)
+from StartProcess import FullProcess
 
 
-def val_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, batch_size, loss_fn, top_k, pre_value,
-            summary_writer, cfg, record_list_total):
+def main():
+    logging.basicConfig(level=logging.INFO)
+    args = parser.parse_args()
+    run(args)
+
+
+def run(args):
+    cfg = import_config(args)
+
+    _, batch_size_test, num_workers = get_run_parameter(args, cfg)
+
+    model_crf, model_mil = produce_model_no_cuda(cfg)
+
+    load_weight(args, model_crf, model_mil)
+
+    model_crf, model_mil = cuda_model(model_crf, model_mil)
+
+    _, loss_fn = get_loss_func()
+
+    summary = {'epoch': 0, 'loss': float(0), 'loss_mil': float(0), 'acc': 0, 'acc_crf': 0, 'fpr': 0,
+               "fnr": 0}
+
+    summary_writer = SummaryWriter(args.save_path)
+
+    process_func = FullProcess(cfg['point_path'], init_status=False)
+    base_dataset = process_func.dataset
+    dataset_test_mil = process_func.inner_get_output_mil_dataset(2)
+    dataloader_test_mil = DataLoader(dataset_test_mil,
+                                     batch_size=batch_size_test,
+                                     num_workers=num_workers,
+                                     drop_last=True)
+
     model_crf.eval()
     model_mil.eval()
+
     time_now = time.time()
-    len_data_loader = len(dataloader)
+    len_data_loader = len(dataloader_test_mil)
+    pre_value = 0.8
 
     time_start = time.time()
 
-    for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(dataloader):
+    for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(dataloader_test_mil):
         with torch.no_grad():
             data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
                                                                                          target_mil, pre_value)
@@ -23,29 +101,28 @@ def val_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, bat
             data_mil = model_get_data_mil(data_mil, output_crf_round)
             predict_mil = model_mil(data_mil)
             predict_mil = torch.sigmoid(predict_mil)
-            record_result(dataset, patch, position, predict_mil)
+            record_result(base_dataset, patch, position, predict_mil)
         print("step:" + str(step + 1) + "/" + "total step:" + str(len_data_loader) + "  time spent:" + str(
             time.time() - time_now))
         time_spent = time.time() - time_start
         time_whole = time_spent / (step + 1) * len_data_loader
         time_need = time_whole - time_spent
-        print("val inference used :" + str(time_spent // (60 * 60)) + "hour," + str(
+        print("test inference used :" + str(time_spent // (60 * 60)) + "hour," + str(
             (time_spent // 60) % 60) + "min," + str(time_spent % 60) + "s")
-        print("val inference need :" + str(time_need // (60 * 60)) + "hour," + str(
+        print("test inference need :" + str(time_need // (60 * 60)) + "hour," + str(
             (time_need // 60) % 60) + "min," + str(time_need % 60) + "s")
         time_now = time.time()
     torch.cuda.empty_cache()
-    dataset.slide_max(1)
-    val_dataset = dataset.produce_dataset_mil(1, top_k)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size // 4, num_workers=num_workers, shuffle=True,
-                            drop_last=True)
+    base_dataset.slide_max(2)
+    test_dataset = base_dataset.produce_dataset_test_mil(2, cfg['top_k'])
+    test_loader = DataLoader(test_dataset, batch_size=batch_size_test // 4, num_workers=num_workers, shuffle=True,
+                             drop_last=True)
     time_now = time.time()
     record_list = []
 
     time_start = time.time()
-    len_val_loader = len(val_loader)
-
-    for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(val_loader):
+    len_test_loader = len(test_loader)
+    for step, (data_crf, target_crf, data_mil, target_mil, patch, position) in enumerate(test_loader):
         record_list.append([])
         with torch.no_grad():
             data_crf, data_mil, target_crf, target_crf_clone, target_mil = transfer2cuda(data_crf, data_mil, target_crf,
@@ -66,37 +143,44 @@ def val_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, bat
 
             time_now = show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf,
                                 output_crf_ori, pre_value, predict_crf, predict_crf_mean, predict_mil, step, summary,
-                                target_crf, target_mil, target_crf_clone, time_now, val_loader, summary_writer, cfg,
+                                target_crf, target_mil, target_crf_clone, time_now, test_loader, summary_writer, cfg,
                                 record_list)
 
-            print("step:" + str(step + 1) + "/" + "total step:" + str(len_val_loader) + "  time spent:" + str(
+            print("step:" + str(step + 1) + "/" + "total step:" + str(len_test_loader) + "  time spent:" + str(
                 time.time() - time_now))
             time_spent = time.time() - time_start
-            time_whole = time_spent / (step + 1) * len_val_loader
+            time_whole = time_spent / (step + 1) * len_test_loader
             time_need = time_whole - time_spent
-            print("val used :" + str(time_spent // (60 * 60)) + "hour," + str(
+            print("test used :" + str(time_spent // (60 * 60)) + "hour," + str(
                 (time_spent // 60) % 60) + "min," + str(time_spent % 60) + "s")
-            print("val need :" + str(time_need // (60 * 60)) + "hour," + str(
+            print("test need :" + str(time_need // (60 * 60)) + "hour," + str(
                 (time_need // 60) % 60) + "min," + str(time_need % 60) + "s")
             time_now = time.time()
 
-    record_list_total.append(record_list)
-    summary_writer.add_scalar('val_epoch/loss', summary['loss'] / len(val_loader), summary['epoch'])
-    summary_writer.add_scalar('val_epoch/acc', summary['acc'] / len(val_loader), summary['epoch'])
-    summary_writer.add_scalar('val_epoch/tpr', 1 - (summary['fnr'] / len(val_loader)), summary['epoch'])
-    summary_writer.add_scalar('val_epoch/fpr', summary['fpr'] / len(val_loader), summary['epoch'])
-    print("Validation")
-    print("loss: " + str(summary['loss'] / len(val_loader)))
-    print("loss_mil: " + str(summary['loss_mil'] / len(val_loader)))
-    print("acc: " + str(summary['acc'] / len(val_loader)))
-    print("acc_crf: " + str(summary['acc_crf'] / len(val_loader)))
-    print("tpr: " + str(1 - (summary['fnr'] / len(val_loader))))
-    print("fpr: " + str(summary['fpr'] / len(val_loader)))
-    summary = {'epoch': summary['epoch'], 'loss': float(0), 'loss_mil': float(0), 'acc': 0, 'acc_crf': 0, 'fpr': 0,
-               "fnr": 0}
-    torch.cuda.empty_cache()
-    summary['epoch'] += 1
-    return summary
+        summary_writer.add_scalar('test/loss', summary['loss'] / len(test_loader), summary['epoch'])
+        summary_writer.add_scalar('test/acc', summary['acc'] / len(test_loader), summary['epoch'])
+        summary_writer.add_scalar('test/tpr', 1 - (summary['fnr'] / len(test_loader)), summary['epoch'])
+        print("Test")
+        print("loss: " + str(summary['loss'] / len(test_loader)))
+        print("loss_mil: " + str(summary['loss_mil'] / len(test_loader)))
+        print("acc: " + str(summary['acc'] / len(test_loader)))
+        print("acc_crf: " + str(summary['acc_crf'] / len(test_loader)))
+        print("tpr: " + str(1 - (summary['fnr'] / len(test_loader))))
+        print("fpr: " + str(summary['fpr'] / len(test_loader)))
+        torch.cuda.empty_cache()
+        torch.save({"summary": summary, "len": len(test_loader), "loss_final": summary['loss'] / len(test_loader),
+                    "loss_mil": summary['loss_mil'] / len(test_loader), "acc": summary['acc'] / len(test_loader),
+                    "acc_crf": summary['acc_crf'] / len(test_loader), "tpr": 1 - (summary['fnr'] / len(test_loader)),
+                    "fpr": summary['fpr'] / len(test_loader)}, os.path.join(args.save_path, 'test_result.ckpt'))
+        path = os.path.join(args.save_path, 'all_result{}.json'.format(epoch))
+        with open(path, 'w') as f:
+            json.dump(record_list_total, f)
+
+
+def load_weight(args, model_crf, model_mil):
+    weight = torch.load(args.weight_path)
+    model_crf = model_crf.load_state_dict(weight['state_dict_crf'])
+    model_mil = model_mil.load_state_dict(weight['state_dict_mil'])
 
 
 def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf, output_crf_ori, pre_value,
@@ -148,7 +232,7 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     loss_name = ['loss_crf_ori: ', 'loss_crf_mean: ', 'loss_crf: ', 'loss_crf_mil: ', 'loss_crf_final: ']
     print_section(loss_name, [loss_crf_ori, loss_crf_mean, loss_crf, loss_crf_mil, loss_crf_final],
                   mode="show_out_pre")
-    print("it's val")
+    print("it's test")
     print_section("", [summary['epoch'] + 1, step + 1, loss_crf_final, acc_data, time_spent],
                   mode="sample")
 
@@ -208,7 +292,7 @@ def record_result(dataset, patch, position, predict_mil):
     # dataset.get_index(predict_final, patch, position, 0)
     patch = np.array(patch).tolist()
     position = np.array(position).tolist()
-    dataset.record_result_mil(predict_final, patch, position, 1)
+    dataset.record_result_mil(predict_final, patch, position, 2)
 
 
 def transfer2cuda(data_crf, data_mil, target_crf, target_mil, pre_value):
@@ -219,3 +303,7 @@ def transfer2cuda(data_crf, data_mil, target_crf, target_mil, pre_value):
     target_crf = change_form(target_crf, pre_value=pre_value)
     target_crf_mean = target_crf.clone().detach().mean(dim=1)
     return data_crf, data_mil, target_crf_mean, target_crf, target_mil
+
+
+if __name__ == '__main__':
+    main()
