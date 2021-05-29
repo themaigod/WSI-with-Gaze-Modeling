@@ -172,8 +172,8 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     summary['loss_mil'] += float(loss_crf_mil.cpu())
     summary['acc'] += acc_data_mil
     summary['acc_crf'] += acc_data2
-    summary['fpr'] = fpr_mil
-    summary['fnr'] = fnr_mil
+    summary['fpr'] += fpr_mil
+    summary['fnr'] += fnr_mil
 
     # if summary['step'] % cfg['log_every'] == 0:
     #     summary_writer.add_scalar('train_epoch/loss in selector', loss_crf_final, summary['step'])

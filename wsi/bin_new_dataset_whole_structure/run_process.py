@@ -34,6 +34,8 @@ def save_best_in_valid_mil_based(args, loss_valid_best, summary_valid, summary_t
                 'state_dict_crf': model_crf.module.state_dict(),
                 'state_dict_mil': model_mil.module.state_dict()},
                os.path.join(args.save_path, 'train_epoch{}.ckpt'.format(summary_train['epoch'])))
+    print("Loss:" + str(summary_valid['loss_mil']))
+    print("Loss before:" + str(loss_valid_best))
     if summary_valid['loss_mil'] < loss_valid_best:
         loss_valid_best = summary_valid['loss']
 

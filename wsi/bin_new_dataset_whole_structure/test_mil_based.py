@@ -34,7 +34,7 @@ parser.add_argument('--num_workers', default=5, type=int, help='number of'
 parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
                                                                   ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
                                                                   ' and GPU_1, default 0.')
-parser.add_argument('--weight_path', default='/home/omnisky/ajmq/patch_slide_relate/save5.28/best.ckpt', type=str,
+parser.add_argument('--weight_path', default='/home/omnisky/ajmq/patch_slide_relate/save5.28/train_epoch.ckpt', type=str,
                     help='weight path')
 parser.add_argument('--dataset_produce_path', default='/home/omnisky/ajmq/process_operate_local', type=str,
                     help='where to import dataset')
@@ -157,24 +157,24 @@ def run(args):
                 (time_need // 60) % 60) + "min," + str(time_need % 60) + "s")
             time_now = time.time()
 
-        summary_writer.add_scalar('test/loss', summary['loss'] / len(test_loader), summary['epoch'])
-        summary_writer.add_scalar('test/acc', summary['acc'] / len(test_loader), summary['epoch'])
-        summary_writer.add_scalar('test/tpr', 1 - (summary['fnr'] / len(test_loader)), summary['epoch'])
-        print("Test")
-        print("loss: " + str(summary['loss'] / len(test_loader)))
-        print("loss_mil: " + str(summary['loss_mil'] / len(test_loader)))
-        print("acc: " + str(summary['acc'] / len(test_loader)))
-        print("acc_crf: " + str(summary['acc_crf'] / len(test_loader)))
-        print("tpr: " + str(1 - (summary['fnr'] / len(test_loader))))
-        print("fpr: " + str(summary['fpr'] / len(test_loader)))
-        torch.cuda.empty_cache()
-        torch.save({"summary": summary, "len": len(test_loader), "loss_final": summary['loss'] / len(test_loader),
-                    "loss_mil": summary['loss_mil'] / len(test_loader), "acc": summary['acc'] / len(test_loader),
-                    "acc_crf": summary['acc_crf'] / len(test_loader), "tpr": 1 - (summary['fnr'] / len(test_loader)),
-                    "fpr": summary['fpr'] / len(test_loader)}, os.path.join(args.save_path, 'test_result.ckpt'))
-        path = os.path.join(args.save_path, 'all_result{}.json'.format(epoch))
-        with open(path, 'w') as f:
-            json.dump(record_list_total, f)
+    summary_writer.add_scalar('test/loss', summary['loss'] / len(test_loader), summary['epoch'])
+    summary_writer.add_scalar('test/acc', summary['acc'] / len(test_loader), summary['epoch'])
+    summary_writer.add_scalar('test/tpr', 1 - (summary['fnr'] / len(test_loader)), summary['epoch'])
+    print("Test")
+    print("loss: " + str(summary['loss'] / len(test_loader)))
+    print("loss_mil: " + str(summary['loss_mil'] / len(test_loader)))
+    print("acc: " + str(summary['acc'] / len(test_loader)))
+    print("acc_crf: " + str(summary['acc_crf'] / len(test_loader)))
+    print("tpr: " + str(1 - (summary['fnr'] / len(test_loader))))
+    print("fpr: " + str(summary['fpr'] / len(test_loader)))
+    torch.cuda.empty_cache()
+    torch.save({"summary": summary, "len": len(test_loader), "loss_final": summary['loss'] / len(test_loader),
+                "loss_mil": summary['loss_mil'] / len(test_loader), "acc": summary['acc'] / len(test_loader),
+                "acc_crf": summary['acc_crf'] / len(test_loader), "tpr": 1 - (summary['fnr'] / len(test_loader)),
+                "fpr": summary['fpr'] / len(test_loader)}, os.path.join(args.save_path, 'test_result.ckpt'))
+    path = os.path.join(args.save_path, 'all_result.json')
+    with open(path, 'w') as f:
+        json.dump(record_list, f)
 
 
 def load_weight(args, model_crf, model_mil):
@@ -256,8 +256,8 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     summary['loss_mil'] += float(loss_crf_mil.cpu())
     summary['acc'] += acc_data_mil
     summary['acc_crf'] += acc_data2
-    summary['fpr'] = fpr_mil
-    summary['fnr'] = fnr_mil
+    summary['fpr'] += fpr_mil
+    summary['fnr'] += fnr_mil
 
     # if summary['step'] % cfg['log_every'] == 0:
     #     summary_writer.add_scalar('train_epoch/loss in selector', loss_crf_final, summary['step'])
