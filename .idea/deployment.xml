@@ -119,6 +119,7 @@
           <mappings>
             <mapping deploy="/patch_slide_local" local="$PROJECT_DIR$" web="/" />
             <mapping deploy="/process_operate_local" local="$PROJECT_DIR$/../tuxiang/process_operate/cs/process_operate/process_operate" web="/" />
+            <mapping deploy="/attention" local="$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master" web="/" />
           </mappings>
         </serverdata>
       </paths>
