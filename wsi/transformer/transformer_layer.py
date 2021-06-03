@@ -25,6 +25,7 @@ import numpy as np
 
 class Transformer(nn.Module):
     """ A sequence to sequence model with attention mechanism. """
+
     # d_word_vec = d_model = fc features
     # 多头注意力n_head = 8
     # d_k = d_v = 64
@@ -82,7 +83,8 @@ class Transformer(nn.Module):
         # if emb_src_trg_weight_sharing:
         #     self.encoder.src_word_emb.weight = self.decoder.trg_word_emb.weight
 
-    def forward(self, src_seq, trg_seq):
+    # def forward(self, src_seq, trg_seq):
+    def forward(self, src_seq):
 
         # src_mask = get_pad_mask(src_seq, self.src_pad_idx)
         src_mask = None
