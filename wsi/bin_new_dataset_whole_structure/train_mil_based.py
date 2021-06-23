@@ -24,7 +24,7 @@ parser.add_argument('--cfg_path', default="../../configs/resnet34_new_dataset_wh
                     metavar='CFG_PATH',
                     type=str,
                     help='Path to the config file in json format')
-parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save", metavar='SAVE_PATH', type=str,
+parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save/mil_based6.13", metavar='SAVE_PATH', type=str,
                     help='Path to the saved models')
 parser.add_argument('--num_workers', default=5, type=int, help='number of'
                                                                ' workers for each data loader, default 2.')

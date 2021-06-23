@@ -3,11 +3,29 @@ import json
 import torch
 from torch.nn import BCEWithLogitsLoss, DataParallel
 from torch.optim import SGD
-from pre_model import (ResNetBase, MIL)
+from pre_model import (ResNetBase, MIL, ResNetTransformer)
 from torch.utils.data import DataLoader
 
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
+
+
+def save_record_key(args, epoch, record_list_key_train, record_list_key_valid):
+    path = os.path.join(args.save_path, 'key_result_train{}.json'.format(epoch))
+    with open(path, 'w') as f:
+        json.dump(record_list_key_train, f)
+    path = os.path.join(args.save_path, 'key_result_valid{}.json'.format(epoch))
+    with open(path, 'w') as f:
+        json.dump(record_list_key_valid, f)
+
+
+def save_record_list(args, epoch, record_list_total_train, record_list_total_valid):
+    path = os.path.join(args.save_path, 'all_result_train{}.json'.format(epoch))
+    with open(path, 'w') as f:
+        json.dump(record_list_total_train, f)
+    path = os.path.join(args.save_path, 'all_result_valid{}.json'.format(epoch))
+    with open(path, 'w') as f:
+        json.dump(record_list_total_valid, f)
 
 
 def save_best_in_valid_epoch_based(args, loss_valid_best, summary_valid, summary_train_crf, summary_train_mil,
@@ -122,6 +140,18 @@ def produce_model(cfg):
     return model_crf, model_mil
 
 
+def produce_model_transformer(cfg):
+    # patch_per_side = cfg['image_size'] // cfg['patch_size']
+    # grid_size = patch_per_side * patch_per_side
+    model_crf = ResNetTransformer(key=cfg['model_crf'], pretrained=cfg['pretrained_crf'])
+    model_mil = MIL(key=cfg['model_mil'], pretrained=True)
+    model_crf = DataParallel(model_crf, device_ids=None)
+    model_crf = model_crf.cuda()
+    model_mil = DataParallel(model_mil, device_ids=None)
+    model_mil = model_mil.cuda()
+    return model_crf, model_mil
+
+
 def produce_model_no_cuda(cfg):
     # patch_per_side = cfg['image_size'] // cfg['patch_size']
     # grid_size = patch_per_side * patch_per_side
@@ -190,8 +220,8 @@ def get_summary_epoch_based():
 
 def get_summary_mil_based():
     summary_train = {'epoch': 0, 'step': 0}
-    summary_valid = {'epoch': 0, 'loss': float(0), 'loss_mil': float(0), 'acc': 0, 'acc_crf': 0, 'fpr': 0,
-                     "fnr": 0}
+    summary_valid = {'epoch': 0, 'loss': float(0), 'loss_mil': float(0), 'acc': 0, 'acc_crf': 0, 'fp': 0,
+                     "fn": 0, "tp": 0, "tn": 0}
     # summary_valid_train = {'epoch': 0, 'loss_classify': float('inf'), 'loss_selector': float('inf'),
     #                        'loss_mixed': float('inf'), 'acc_classify': 0, 'acc_glaze': 0}
     return summary_train, summary_valid  # summary_valid_train

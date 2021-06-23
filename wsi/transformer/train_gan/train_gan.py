@@ -4,7 +4,7 @@ from .tool import *
 
 
 def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, batch_size, loss_fn, optimizer_crf,
-              optimizer_mil, top_k, pre_value, summary_writer, cfg, record_list_total):
+              optimizer_mil, top_k, pre_value, summary_writer, cfg, record_list_total, record_list_key):
     model_crf.eval()
     model_mil.eval()
     time_now = time.time()
@@ -47,6 +47,7 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
     model_mil.train()
     model_crf.train()
     record_list = []
+    record_key_dict = []
     time_now = time.time()
     time_start = time.time()
     len_train_loader = len(train_loader)
@@ -83,13 +84,18 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
             loss_mil.backward()
             optimizer_mil.step()
 
+        record_key_dict_single = {}
+
         time_now = show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf,
                             output_crf_ori, pre_value, predict_crf, predict_crf_mean, predict_mil, step, summary,
                             target_crf, target_mil, target_crf_clone, time_now, train_loader, summary_writer, cfg,
-                            record_list)
+                            record_list, record_key_dict_single)
 
         show_mil(index, loss_mil, predict_mil[index], step, summary, target_mil[index], time_now, summary_writer, cfg,
-                 record_list)
+                 record_list, record_key_dict_single)
+
+        if record_key_dict_single != {}:
+            record_key_dict.append(record_key_dict_single)
 
         time_spent = time.time() - time_start
         time_whole = time_spent / (step + 1) * len_train_loader
@@ -102,12 +108,14 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
         summary['step'] += 1
 
     record_list_total.append(record_list)
+    record_list_key.append(record_key_dict)
     summary['epoch'] += 1
     torch.cuda.empty_cache()
     return summary
 
 
-def show_mil(index, loss_mil, predict_mil, step, summary, target_mil, time_now, summary_writer, cfg, record_list):
+def show_mil(index, loss_mil, predict_mil, step, summary, target_mil, time_now, summary_writer, cfg, record_list,
+             record_key_dict):
     #         record 添加 loss_mil acc_mil fpr_mil fnr_mil
     if len(index) != 0:
         if step % 3 == 0:
@@ -141,6 +149,10 @@ def show_mil(index, loss_mil, predict_mil, step, summary, target_mil, time_now, 
         record_list[-1].append(fnr_mil)
 
         if summary['step'] % cfg['log_every'] == 0:
+            record_key_dict['loss_mil'] = float(loss_mil.cpu())
+            record_key_dict['acc_mil'] = acc_mil
+            record_key_dict['tpr_mil'] = 1 - fnr_mil
+            record_key_dict['fpr_mil'] = fpr_mil
             summary_writer.add_scalar('train_step/loss_mil', float(loss_mil.cpu()), summary['step'])
             summary_writer.add_scalar('train_step/acc_mil', acc_mil, summary['step'])
             summary_writer.add_scalar('train_step/tpr_mil', 1 - fnr_mil, summary['step'])
@@ -149,7 +161,7 @@ def show_mil(index, loss_mil, predict_mil, step, summary, target_mil, time_now, 
 
 def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori, output_crf, output_crf_ori, pre_value,
              predict_crf, predict_crf_mean, predict_mil, step, summary, target_crf, target_mil, target_crf_clone,
-             time_now, train_loader, summary_writer, cfg, record_list):
+             time_now, train_loader, summary_writer, cfg, record_list, record_key_dict):
     if step % 3 == 0:
         print("output crf mean:")
         print(output_crf)
@@ -211,13 +223,21 @@ def show_crf(loss_crf, loss_crf_final, loss_crf_mean, loss_crf_mil, loss_crf_ori
     record_list[-1].append(fnr_mil)
 
     if summary['step'] % cfg['log_every'] == 0:
+        record_key_dict['step'] = summary['step']
+        record_key_dict['loss_selector'] = float(loss_crf_final.cpu())
+        record_key_dict['acc_selector'] = acc_data2
+        record_key_dict['acc_total'] = acc_data_mil
+        record_key_dict['train_tpr_selector'] = 1 - fnr_ori
+        record_key_dict['train_tpr_total'] = 1 - fnr_mil
+        record_key_dict['train_fpr_selector'] = fpr_ori
+        record_key_dict['train_fpr_total'] = fpr_mil
         summary_writer.add_scalar('train_step/loss_selector', float(loss_crf_final.cpu()), summary['step'])
         summary_writer.add_scalar('train_step/acc_selector', acc_data2, summary['step'])
         summary_writer.add_scalar('train_step/acc_total', acc_data_mil, summary['step'])
         summary_writer.add_scalar('train_step/train_tpr_selector', 1 - fnr_ori, summary['step'])
         summary_writer.add_scalar('train_step/train_tpr_total', 1 - fnr_mil, summary['step'])
-        summary_writer.add_scalar('train_step/train_fpr_selector', 1 - fpr_ori, summary['step'])
-        summary_writer.add_scalar('train_step/train_fpr_total', 1 - fpr_mil, summary['step'])
+        summary_writer.add_scalar('train_step/train_fpr_selector', fpr_ori, summary['step'])
+        summary_writer.add_scalar('train_step/train_fpr_total', fpr_mil, summary['step'])
         print_section("", output_crf_ori, print_function="print")
         print_section("", target_crf_clone, print_function="print")
 

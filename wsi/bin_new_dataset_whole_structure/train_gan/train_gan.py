@@ -68,7 +68,7 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
         loss_crf_ori = loss_fn(output_crf_ori, target_crf_clone)
         loss_crf = 0.2 * loss_crf_ori + 0.8 * loss_crf_mean
         loss_crf_mil = loss_fn(predict_mil, target_mil)
-        loss_crf_final = loss_crf * 0.4 + loss_crf_mil * 0.6
+        loss_crf_final = loss_crf * 0 + loss_crf_mil * 1
 
         loss_mil = None
         if len(index) != 0:

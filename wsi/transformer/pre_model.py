@@ -142,8 +142,14 @@ class ResNetTransformer(torch.nn.Module):
         # self.resnet = torch.nn.Sequential(*(list(model.children())[:-1]))
         # self.fc = torch.nn.Linear(num_fc_ftr, num_class)
         model = MODELS[key](pretrained=pretrained)
-        model.fc = nn.Linear(model.fc.in_features, num_class)
-        self.resnet = model
+        self.features_num = model.fc.in_features
+        modules = list(model.children())[:-1]
+        self.resnet = nn.Sequential(*modules)
+        # model.fc = nn.Linear(model.fc.in_features, num_class)
+        # self.resnet = model
+        self.transformer = Transformer(n_trg_vocab=1, d_word_vec=512, d_model=512, d_inner=2048,
+                                       n_layers=1, n_head=8, d_k=64, d_v=64, dropout=0.1, n_position=200,
+                                       trg_emb_prj_weight_sharing=True, scale_emb_or_prj='prj')
 
     def forward(self, x, freeze=False):
         batch_size, grid_size, _, crop_size = x.shape[0:4]
@@ -155,9 +161,8 @@ class ResNetTransformer(torch.nn.Module):
             x = self.resnet(x)
         # feats = x.view(x.size(0), -1)
         # logits = self.fc(feats)
-        x = x.view((batch_size, grid_size, -1))
-        x = torch.squeeze(x)
+        # x = x.view((batch_size, grid_size, -1))
+        # x = torch.squeeze(x)
+        x = x.view(batch_size, grid_size, -1)
+        x = self.transformer(x)
         return x
-
-
-

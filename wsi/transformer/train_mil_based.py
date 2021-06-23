@@ -28,9 +28,9 @@ parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relat
                     help='Path to the saved models')
 parser.add_argument('--num_workers', default=5, type=int, help='number of'
                                                                ' workers for each data loader, default 2.')
-parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
-                                                                  ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
-                                                                  ' and GPU_1, default 0.')
+parser.add_argument('--device_ids', default='1', type=str, help='comma'
+                                                                ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
+                                                                ' and GPU_1, default 0.')
 parser.add_argument('--dataset_produce_path', default='/home/omnisky/ajmq/process_operate_local', type=str,
                     help='where to import dataset')
 
@@ -74,20 +74,25 @@ def run(args):
     dataloader_train_mil, dataloader_valid_mil = get_train_mil_dataloader(batch_size_train, batch_size_valid,
                                                                           num_workers, process_func)
 
-    record_list_total = []
+    record_list_total_train = []
+    record_list_total_valid = []
+
+    record_list_key_train = []
+    record_list_key_valid = []
 
     time_start = time.time()
 
     for epoch in range(cfg['epoch']):
         summary_train = train_gan(dataloader_train_mil, model_crf, model_mil, base_dataset, summary_train, num_workers,
                                   batch_size_train, loss_fn_without_sigmoid, optimizer_crf,
-                                  optimizer_mil, cfg['top_k'], cfg['pre_value'], summary_writer, cfg, record_list_total)
+                                  optimizer_mil, cfg['top_k'], cfg['pre_value'], summary_writer, cfg,
+                                  record_list_total_train, record_list_key_train)
 
         save_train_state_dict_mil_based(args, model_crf, model_mil, summary_train)
 
         summary_valid = val_gan(dataloader_valid_mil, model_crf, model_mil, base_dataset, summary_valid, num_workers,
                                 batch_size_valid, loss_fn_without_sigmoid, cfg['top_k'], cfg['pre_value'],
-                                summary_writer, cfg, record_list_total)
+                                summary_writer, cfg, record_list_total_valid, record_list_key_valid)
 
         loss_valid_best = save_best_in_valid_mil_based(args, loss_valid_best, summary_valid, summary_train, model_crf,
                                                        model_mil)
@@ -107,11 +112,12 @@ def run(args):
         if stop['stop'] is True:
             break
 
-        path = os.path.join(args.save_path, 'all_result{}.json'.format(epoch))
-        with open(path, 'w') as f:
-            json.dump(record_list_total, f)
+        save_record_list(args, epoch, record_list_total_train, record_list_total_valid)
+        save_record_key(args, epoch, record_list_key_train, record_list_key_valid)
 
     summary_writer.close()
+
+
 
 
 if __name__ == '__main__':
