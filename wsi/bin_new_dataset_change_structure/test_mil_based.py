@@ -20,19 +20,19 @@ torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
 parser = argparse.ArgumentParser(description='Test model')
-parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch_slide_relate/save/change6.19/cfg.json",
+parser.add_argument('--cfg_path', default="/home/omnisky/ajmq/patch_slide_relate/save/change7.7/cfg.json",
                     metavar='CFG_PATH',
                     type=str,
                     help='Path to the config file in json format')
-parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save_test/change6.19",
+parser.add_argument('--save_path', default="/home/omnisky/ajmq/patch_slide_relate/save_test/change7.7",
                     metavar='SAVE_PATH', type=str,
                     help='Path to the saved test result')
 parser.add_argument('--num_workers', default=5, type=int, help='number of'
                                                                ' workers for each data loader, default 2.')
-parser.add_argument('--device_ids', default='0,1', type=str, help='comma'
+parser.add_argument('--device_ids', default='1', type=str, help='comma'
                                                                   ' separated indices of GPU to use, e.g. 0,1 for using GPU_0'
                                                                   ' and GPU_1, default 0.')
-parser.add_argument('--weight_path', default='/home/omnisky/ajmq/patch_slide_relate/save/change6.19/train_epoch25.ckpt',
+parser.add_argument('--weight_path', default='//home/omnisky/ajmq/patch_slide_relate/save/change7.7/train_epoch12.ckpt',
                     type=str,
                     help='weight path')
 parser.add_argument('--dataset_produce_path', default='/home/omnisky/ajmq/process_operate_local', type=str,

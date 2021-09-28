@@ -79,13 +79,14 @@ def train_gan(dataloader, model_crf, model_mil, dataset, summary, num_workers, b
             loss_mil = loss_fn(predict_mil[index], target_mil[index])
 
         optimizer_crf.zero_grad()
+        optimizer_mil.zero_grad()
         loss_crf_final.backward(retain_graph=True)
         optimizer_crf.step()
 
-        optimizer_mil.zero_grad()
-        if len(index) != 0:
-            loss_mil.backward()
-            optimizer_mil.step()
+        optimizer_mil.step()
+        # if len(index) != 0:
+        #     loss_mil.backward()
+        #     optimizer_mil.step()
 
         record_key_dict_single = {}
 
