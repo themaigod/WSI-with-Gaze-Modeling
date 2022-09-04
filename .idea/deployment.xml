@@ -1,125 +1,71 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="schoolmydir">
+  <component name="PublishConfigData" autoUpload="Always">
     <serverData>
-      <paths name="school">
+      <paths name="base_neu">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master" web="/" />
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="my_neu">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master" web="/" />
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="neu2">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="school (1)">
+      <paths name="neu2-A6000-auto">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/patch-slide" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/process_operate" local="$PROJECT_DIR$/../process_operate" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="neu2-home">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="school (10)">
+      <paths name="northeastern">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master" web="/" />
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="omnisky@219.216.66.27:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="" local="" web="" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="omnisky@219.216.66.27:22 password (1)">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="school (11)">
+      <paths name="polyu">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (12)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (13)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (14)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (2)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (3)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (4)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (5)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (6)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (7)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (8)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="school (9)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="schooldir">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="schoolmydir">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/patch_slide_local" local="$PROJECT_DIR$" web="/" />
-            <mapping deploy="/process_operate_local" local="$PROJECT_DIR$/../tuxiang/process_operate/cs/process_operate/process_operate" web="/" />
-            <mapping deploy="/attention" local="$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master" web="/" />
           </mappings>
         </serverdata>
       </paths>

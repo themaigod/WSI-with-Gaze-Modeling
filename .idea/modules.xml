@@ -2,9 +2,12 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../../polyu/wsi/WSIGeneralProcess/.idea/WSIGeneralProcess.iml" filepath="$PROJECT_DIR$/../../polyu/wsi/WSIGeneralProcess/.idea/WSIGeneralProcess.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master/.idea/attention-is-all-you-need-pytorch-master.iml" filepath="$PROJECT_DIR$/../../Chrome/attention-is-all-you-need-pytorch-master/attention-is-all-you-need-pytorch-master/.idea/attention-is-all-you-need-pytorch-master.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/patch-based.iml" filepath="$PROJECT_DIR$/.idea/patch-based.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../process_operate/.idea/patch-operate.iml" filepath="$PROJECT_DIR$/../process_operate/.idea/patch-operate.iml" />
       <module fileurl="file://$PROJECT_DIR$/../tuxiang/process_operate/cs/process_operate/process_operate/.idea/process_operate.iml" filepath="$PROJECT_DIR$/../tuxiang/process_operate/cs/process_operate/process_operate/.idea/process_operate.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../polyu/wsi/slideclassification/.idea/slideclassification.iml" filepath="$PROJECT_DIR$/../../polyu/wsi/slideclassification/.idea/slideclassification.iml" />
     </modules>
   </component>
 </project>

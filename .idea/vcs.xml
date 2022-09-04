@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../process_operate" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../polyu/wsi/WSIGeneralProcess" vcs="Git" />
   </component>
 </project>
